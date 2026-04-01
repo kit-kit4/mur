@@ -173,7 +173,7 @@ bot.on("message:text", async (ctx) => {
   }
 });
 
-// Звіт та обнулення кожні 24 години
+// Звіт та обнулення кожні 24 години в
 setInterval(async () => {
   const db = loadStorage();
   const now = new Date();
