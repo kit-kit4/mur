@@ -43,9 +43,11 @@ var fs = require("fs");
 // ==========================================
 var CONFIG = {
     BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
+    BOT_ADMINS: [5147076742],
     ALLOWED_RESOURCES: [
         -1002789684698, -1003200253794, -1002557455848, -1002563493364,
-        -1002808281023, 5147076742, 8296806565, 987654321, 1122334455,
+        -1003872064368, -1002808281023, 5147076742, 8296806565, 987654321,
+        1122334455,
     ],
     ADMIN_CHAT_ID: -1002808281023,
     LOG_THREAD_ID: 3861,
@@ -188,6 +190,66 @@ bot.hears(/^[Мм]ур[!?.]*$/i, function (ctx) { return __awaiter(void 0, void 
             case 1:
                 _a.sent();
                 return [2 /*return*/];
+        }
+    });
+}); });
+// Команда для ручного додавання кнопок до старих постів
+bot.command("postREP", function (ctx) { return __awaiter(void 0, void 0, void 0, function () {
+    var userId, args, chatId, messageId, error_1;
+    var _a;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
+            case 0:
+                userId = (_a = ctx.from) === null || _a === void 0 ? void 0 : _a.id;
+                // 1. Перевірка прав (Дропаємо всіх, кого немає в масиві BOT_ADMINS)
+                if (!userId || !CONFIG.BOT_ADMINS.includes(userId)) {
+                    return [2 /*return*/]; // Бот мовчки ігнорує
+                }
+                args = ctx.match.split(" ");
+                if (!(args.length !== 2)) return [3 /*break*/, 2];
+                return [4 /*yield*/, ctx.reply("❌ Неправильний формат.\nВикористовуй: <code>/postREP -100xxxxxx message_id</code>", {
+                        parse_mode: "HTML",
+                        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
+                    })];
+            case 1:
+                _b.sent();
+                return [2 /*return*/];
+            case 2:
+                chatId = Number(args[0]);
+                messageId = Number(args[1]);
+                if (!(isNaN(chatId) || isNaN(messageId))) return [3 /*break*/, 4];
+                return [4 /*yield*/, ctx.reply("❌ ID чату та ID повідомлення мають бути числами!", {
+                        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
+                    })];
+            case 3:
+                _b.sent();
+                return [2 /*return*/];
+            case 4:
+                _b.trys.push([4, 7, , 9]);
+                return [4 /*yield*/, ctx.api.sendMessage(chatId, formatPremiumEmoji(CONFIG.POST_TEXT), {
+                        reply_parameters: { message_id: messageId },
+                        reply_markup: checker.getPostKeyboard(),
+                        parse_mode: "HTML",
+                    })];
+            case 5:
+                _b.sent();
+                // Відповідаємо адміну, що все вийшло (з реплаєм на команду)
+                return [4 /*yield*/, ctx.reply("\u2705 \u041A\u043D\u043E\u043F\u043A\u0438 \u0443\u0441\u043F\u0456\u0448\u043D\u043E \u0434\u043E\u0434\u0430\u043D\u043E \u0434\u043E \u043F\u043E\u0441\u0442\u0443 <code>".concat(messageId, "</code>!"), {
+                        parse_mode: "HTML",
+                        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
+                    })];
+            case 6:
+                // Відповідаємо адміну, що все вийшло (з реплаєм на команду)
+                _b.sent();
+                return [3 /*break*/, 9];
+            case 7:
+                error_1 = _b.sent();
+                console.error("Помилка при додаванні до старого посту:", error_1);
+                return [4 /*yield*/, ctx.reply("❌ Помилка API. Перевір, чи правильні ID та чи є бот у тому чаті з правами адміна.", { reply_parameters: { message_id: ctx.msg.message_id } })];
+            case 8:
+                _b.sent();
+                return [3 /*break*/, 9];
+            case 9: return [2 /*return*/];
         }
     });
 }); });

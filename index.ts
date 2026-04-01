@@ -6,9 +6,11 @@ import * as fs from "fs";
 // ==========================================
 const CONFIG = {
   BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
+  BOT_ADMINS: [5147076742],
   ALLOWED_RESOURCES: [
     -1002789684698, -1003200253794, -1002557455848, -1002563493364,
-    -1002808281023, 5147076742, 8296806565, 987654321, 1122334455,
+    -1003872064368, -1002808281023, 5147076742, 8296806565, 987654321,
+    1122334455,
   ],
   ADMIN_CHAT_ID: -1002808281023,
   LOG_THREAD_ID: 3861,
@@ -148,6 +150,65 @@ bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
   await ctx.reply("Мяу 🐾", {
     reply_parameters: { message_id: ctx.msg.message_id },
   });
+});
+
+// Команда для ручного додавання кнопок до старих постів
+bot.command("postREP", async (ctx) => {
+  const userId = ctx.from?.id;
+
+  // 1. Перевірка прав (Дропаємо всіх, кого немає в масиві BOT_ADMINS)
+  if (!userId || !CONFIG.BOT_ADMINS.includes(userId)) {
+    return; // Бот мовчки ігнорує
+  }
+
+  // 2. Отримуємо аргументи команди (те, що йде після /postREP)
+  // ctx.match зберігає весь текст після команди. Ділимо його по пробілу.
+  const args = ctx.match.split(" ");
+
+  if (args.length !== 2) {
+    await ctx.reply(
+      "❌ Неправильний формат.\nВикористовуй: <code>/postREP -100xxxxxx message_id</code>",
+      {
+        parse_mode: "HTML",
+        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
+      },
+    );
+    return;
+  }
+
+  const chatId = Number(args[0]);
+  const messageId = Number(args[1]);
+
+  if (isNaN(chatId) || isNaN(messageId)) {
+    await ctx.reply("❌ ID чату та ID повідомлення мають бути числами!", {
+      reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
+    });
+    return;
+  }
+
+  // 3. Відправляємо повідомлення під старий пост
+  try {
+    await ctx.api.sendMessage(chatId, formatPremiumEmoji(CONFIG.POST_TEXT), {
+      reply_parameters: { message_id: messageId },
+      reply_markup: checker.getPostKeyboard(),
+      parse_mode: "HTML",
+    });
+
+    // Відповідаємо адміну, що все вийшло (з реплаєм на команду)
+    await ctx.reply(
+      `✅ Кнопки успішно додано до посту <code>${messageId}</code>!`,
+      {
+        parse_mode: "HTML",
+        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
+      },
+    );
+  } catch (error) {
+    console.error("Помилка при додаванні до старого посту:", error);
+    await ctx.reply(
+      "❌ Помилка API. Перевір, чи правильні ID та чи є бот у тому чаті з правами адміна.",
+      { reply_parameters: { message_id: ctx.msg.message_id } }, // <--- Реплай на команду
+    );
+  }
 });
 
 // 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ
