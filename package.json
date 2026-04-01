@@ -1,31 +1,21 @@
 {
   "name": "mur",
   "version": "1.0.0",
-  "description": "��#\u0000m\u0000u\u0000r\u0000\r\u0000 \u0000",
-  
+  "description": "Telegram bot for channel monitoring and language patrol",
   "main": "bot.ts",
+  "type": "commonjs",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "ts-node bot.ts",
+    "dev": "ts-node --transpile-only bot.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kit-kit4/mur.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/kit-kit4/mur/issues"
-  },
-  "homepage": "https://github.com/kit-kit4/mur#readme",
   "dependencies": {
-    "grammy": "^1.41.1"
+    "grammy": "^1.41.1",
+    "dotenv": "^17.3.1",
+    "fs": "0.0.1-security"
   },
   "devDependencies": {
-    "@types/node": "^25.5.0",
+    "@types/node": "^20.0.0",
     "ts-node": "^10.9.2",
-    "typescript": "^6.0.2"
+    "typescript": "^5.4.0"
   }
 }
-
-
