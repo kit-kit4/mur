@@ -6,7 +6,10 @@ import * as fs from "fs";
 // ==========================================
 const CONFIG = {
   BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
-  ALLOWED_RESOURCES: [-1002557455848, -1002563493364, -1002808281023],
+  ALLOWED_RESOURCES: [
+    -1002557455848, -1002563493364, -1002557455848, -1002563493364,
+    -1002808281023,
+  ],
   ADMIN_CHAT_ID: -1002808281023,
   LOG_THREAD_ID: 3861,
   DB_PATH: "./storage.json",
