@@ -39,11 +39,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var grammy_1 = require("grammy");
 var fs = require("fs");
 // ==========================================
-// 1. КОНФІГУРАЦІЯ (Колишній config.ts)
+// 1. КОНФІГУРАЦІЯ
 // ==========================================
 var CONFIG = {
-    BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
-    ALLOWED_RESOURCES: [-1002563493364, -100136817688, -1002808281023],
+    BOT_TOKEN: "8569832486:AAHu5bPAezoJLnt3z0emBl6FsYdc9sOCjHQ", // Обов'язково зміни токен після тестів!
+    ALLOWED_RESOURCES: [-1002789684698, -1003200253794, -1002808281023],
     ADMIN_CHAT_ID: -1002808281023,
     LOG_THREAD_ID: 3861,
     DB_PATH: "./storage.json",
@@ -77,7 +77,7 @@ function saveStorage(data) {
     fs.writeFileSync(CONFIG.DB_PATH, JSON.stringify(data, null, 2));
 }
 // ==========================================
-// 3. ЛОГІКА ТА КЛАВІАТУРИ (Колишній logic.ts)
+// 3. ЛОГІКА ТА КЛАВІАТУРИ
 // ==========================================
 var checker = {
     hasRussian: function (text) {
@@ -89,17 +89,15 @@ var checker = {
             .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
             .row()
             .url("Повна навігація 🗺", "https://t.me/murumishop/106")
-            .url("Канал з посилками 📦", "https://t.me/deliverymurumi")
-            .row()
-            .text("Я прочитав(ла) ✅", "click_confirm");
+            .url("Канал з посилками 📦", "https://t.me/deliverymurumi");
     },
 };
 // ==========================================
-// 4. ГОЛОВНА ЛОГІКА БОТА (Колишній bot.ts)
+// 4. ГОЛОВНА ЛОГІКА БОТА
 // ==========================================
 initStorage(); // Ініціалізуємо БД при старті
 var bot = new grammy_1.Bot(CONFIG.BOT_TOKEN);
-// Контроль чатів
+// 4.1. Контроль чатів (Забороняємо ліві групи)
 bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0, function () {
     var isAllowed, isAdminChat, e_1;
     return __generator(this, function (_a) {
@@ -129,20 +127,54 @@ bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0
         }
     });
 }); });
-// Команда перевірки (Мур -> Мяу)
+// 4.2. Команда перевірки (Мур -> Мяу)
 bot.hears(/^[Мм]ур[!?.]*$/i, function (ctx) { return __awaiter(void 0, void 0, void 0, function () {
     return __generator(this, function (_a) {
         switch (_a.label) {
-            case 0: return [4 /*yield*/, ctx.reply("Мяу 🐾", { reply_to_message_id: ctx.msg.message_id })];
+            case 0: return [4 /*yield*/, ctx.reply("Мяу 🐾", {
+                    reply_parameters: { message_id: ctx.msg.message_id },
+                })];
             case 1:
                 _a.sent();
                 return [2 /*return*/];
         }
     });
 }); });
-// Авто-відповідь на нові пости в каналі
+// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ (ОСЬ ВАЖЛИВИЙ ФІКС!)
+bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0, function () {
+    var channelId, e_2;
+    var _a;
+    return __generator(this, function (_b) {
+        switch (_b.label) {
+            case 0:
+                if (!(((_a = ctx.msg.sender_chat) === null || _a === void 0 ? void 0 : _a.type) === "channel")) return [3 /*break*/, 5];
+                channelId = ctx.msg.sender_chat.id;
+                if (!CONFIG.ALLOWED_RESOURCES.includes(channelId)) return [3 /*break*/, 4];
+                _b.label = 1;
+            case 1:
+                _b.trys.push([1, 3, , 4]);
+                return [4 /*yield*/, ctx.reply(CONFIG.POST_TEXT, {
+                        reply_parameters: { message_id: ctx.msg.message_id }, // Робимо реплай на сам пост
+                        reply_markup: checker.getPostKeyboard(),
+                    })];
+            case 2:
+                _b.sent();
+                return [3 /*break*/, 4];
+            case 3:
+                e_2 = _b.sent();
+                console.error("Помилка при надсиланні кнопок під пост:", e_2);
+                return [3 /*break*/, 4];
+            case 4: return [2 /*return*/]; // Зупиняємо ланцюжок, щоб мовний патруль не перевіряв цей пост
+            case 5: return [4 /*yield*/, next()];
+            case 6:
+                _b.sent(); // Якщо це звичайне повідомлення від людини, йдемо далі
+                return [2 /*return*/];
+        }
+    });
+}); });
+// 4.4. Авто-відповідь, якщо бота додали ПРЯМО В КАНАЛ (як адміна)
 bot.on("channel_post", function (ctx) { return __awaiter(void 0, void 0, void 0, function () {
-    var e_2;
+    var e_3;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -157,14 +189,14 @@ bot.on("channel_post", function (ctx) { return __awaiter(void 0, void 0, void 0,
                 _a.sent();
                 return [3 /*break*/, 4];
             case 3:
-                e_2 = _a.sent();
-                console.error("Помилка при надсиланні посту:", e_2);
+                e_3 = _a.sent();
+                console.error("Помилка при надсиланні посту:", e_3);
                 return [3 /*break*/, 4];
             case 4: return [2 /*return*/];
         }
     });
 }); });
-// Обробка кліків на кнопки
+// 4.5. Обробка кліків на кнопки
 bot.on("callback_query:data", function (ctx) { return __awaiter(void 0, void 0, void 0, function () {
     var data, key;
     return __generator(this, function (_a) {
@@ -181,15 +213,21 @@ bot.on("callback_query:data", function (ctx) { return __awaiter(void 0, void 0, 
         }
     });
 }); });
-// Мовний патруль
+// 4.6. Мовний патруль
 bot.on("message:text", function (ctx) { return __awaiter(void 0, void 0, void 0, function () {
     var userId, db, cleanChatId, err_1, err_2;
-    var _a;
-    return __generator(this, function (_b) {
-        switch (_b.label) {
+    var _a, _b;
+    return __generator(this, function (_c) {
+        switch (_c.label) {
             case 0:
-                if (!checker.hasRussian(ctx.msg.text)) return [3 /*break*/, 8];
-                userId = (_a = ctx.from) === null || _a === void 0 ? void 0 : _a.id;
+                // ІГНОРУЄМО ботів (щоб не сварити їх)
+                if ((_a = ctx.from) === null || _a === void 0 ? void 0 : _a.is_bot)
+                    return [2 /*return*/];
+                // Також ігноруємо адмін чат
+                if (ctx.chat.id === CONFIG.ADMIN_CHAT_ID)
+                    return [2 /*return*/];
+                if (!checker.hasRussian(ctx.msg.text)) return [3 /*break*/, 9];
+                userId = (_b = ctx.from) === null || _b === void 0 ? void 0 : _b.id;
                 if (!userId)
                     return [2 /*return*/];
                 db = loadStorage();
@@ -197,9 +235,9 @@ bot.on("message:text", function (ctx) { return __awaiter(void 0, void 0, void 0,
                 saveStorage(db);
                 if (!(db.warnings[userId] >= 3)) return [3 /*break*/, 5];
                 cleanChatId = ctx.chat.id.toString().replace("-100", "");
-                _b.label = 1;
+                _c.label = 1;
             case 1:
-                _b.trys.push([1, 3, , 4]);
+                _c.trys.push([1, 3, , 4]);
                 return [4 /*yield*/, bot.api.sendMessage(CONFIG.ADMIN_CHAT_ID, "\uD83D\uDEA8 **\u041F\u041E\u0420\u0423\u0428\u0415\u041D\u041D\u042F \u041C\u041E\u0412\u041D\u0418\u0425 \u041F\u0420\u0410\u0412\u0418\u041B**\n\n" +
                         "\uD83D\uDC64 **\u041A\u043E\u0440\u0438\u0441\u0442\u0443\u0432\u0430\u0447:** ".concat(ctx.from.first_name, " (@").concat(ctx.from.username || "немає", ")\n") +
                         "\uD83C\uDD94 **ID:** `".concat(userId, "`\n") +
@@ -209,28 +247,30 @@ bot.on("message:text", function (ctx) { return __awaiter(void 0, void 0, void 0,
                         parse_mode: "Markdown",
                     })];
             case 2:
-                _b.sent();
+                _c.sent();
                 return [3 /*break*/, 4];
             case 3:
-                err_1 = _b.sent();
-                console.error("Не зміг відправити звіт в адмін чат.", err_1);
+                err_1 = _c.sent();
+                console.error("Не зміг відправити звіт в адмін чат.");
                 return [3 /*break*/, 4];
-            case 4: return [3 /*break*/, 8];
+            case 4: return [3 /*break*/, 9];
             case 5:
-                _b.trys.push([5, 7, , 8]);
-                return [4 /*yield*/, ctx.reply("\u0410\u0439-\u0430\u0439-\u0430\u0439, ".concat(ctx.from.first_name, ", \u0432 \u0446\u044C\u043E\u043C\u0443 \u0447\u0430\u0442\u0456 \u043D\u0435 \u043C\u043E\u0436\u043D\u0430 \u0441\u043F\u0456\u043B\u043A\u0443\u0432\u0430\u0442\u0438\u0441\u044C \u0440\u043E\u0441\u0456\u0439\u0441\u044C\u043A\u043E\u044E. \u0423\u0441\u043D\u0435 \u043F\u043E\u043F\u0435\u0440\u0435\u0434\u0436\u0435\u043D\u043D\u044F! (").concat(db.warnings[userId], "/3)"), { reply_to_message_id: ctx.msg.message_id })];
+                _c.trys.push([5, 7, , 9]);
+                return [4 /*yield*/, ctx.reply("\u0410\u0439-\u0430\u0439-\u0430\u0439, ".concat(ctx.from.first_name, ", \u0432 \u0446\u044C\u043E\u043C\u0443 \u0447\u0430\u0442\u0456 \u043D\u0435 \u043C\u043E\u0436\u043D\u0430 \u0441\u043F\u0456\u043B\u043A\u0443\u0432\u0430\u0442\u0438\u0441\u044C \u0440\u043E\u0441\u0456\u0439\u0441\u044C\u043A\u043E\u044E. \u0423\u0441\u043D\u0435 \u043F\u043E\u043F\u0435\u0440\u0435\u0434\u0436\u0435\u043D\u043D\u044F! (").concat(db.warnings[userId], "/3)"), { reply_parameters: { message_id: ctx.msg.message_id } })];
             case 6:
-                _b.sent();
-                return [3 /*break*/, 8];
+                _c.sent();
+                return [3 /*break*/, 9];
             case 7:
-                err_2 = _b.sent();
-                console.error("Не зміг відправити попередження:", err_2);
-                return [3 /*break*/, 8];
-            case 8: return [2 /*return*/];
+                err_2 = _c.sent();
+                return [4 /*yield*/, ctx.reply("\u0410\u0439-\u0430\u0439-\u0430\u0439, ".concat(ctx.from.first_name, ", \u0432 \u0446\u044C\u043E\u043C\u0443 \u0447\u0430\u0442\u0456 \u043D\u0435 \u043C\u043E\u0436\u043D\u0430 \u0441\u043F\u0456\u043B\u043A\u0443\u0432\u0430\u0442\u0438\u0441\u044C \u0440\u043E\u0441\u0456\u0439\u0441\u044C\u043A\u043E\u044E. \u0423\u0441\u043D\u0435 \u043F\u043E\u043F\u0435\u0440\u0435\u0434\u0436\u0435\u043D\u043D\u044F! (").concat(db.warnings[userId], "/3)"))];
+            case 8:
+                _c.sent();
+                return [3 /*break*/, 9];
+            case 9: return [2 /*return*/];
         }
     });
 }); });
-// Звіт та обнулення кожні 24 години
+// 4.7. Звіт та обнулення кожні 24 години
 setInterval(function () { return __awaiter(void 0, void 0, void 0, function () {
     var db, now, lastReset, report, _i, _a, _b, btn, count, err_3;
     return __generator(this, function (_c) {
