@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "��#\u0000m\u0000u\u0000r\u0000\r\u0000 \u0000",
   
-  "main": "index.js",
+  "main": "bot.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -14,7 +14,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "module",
   "bugs": {
     "url": "https://github.com/kit-kit4/mur/issues"
   },
