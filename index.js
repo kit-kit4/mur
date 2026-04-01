@@ -144,7 +144,7 @@ var child_process_1 = require("child_process");
 // 🐱 Налаштування МУР-бота
 var MUR_CONFIG = {
   name: "Мур-БОТ",
-  token: "8569832486:AAHu5bPAezoJLnt3z0emBl6FsYdc9sOCjHQ", // Обов'язково зміни токен після тестів!
+  token: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
   admins: [5147076742],
   allowedResources: [
     -1002789684698, -1003200253794, -1002557455848, -1002563493364,
