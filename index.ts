@@ -2,11 +2,11 @@ import { Bot, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import * as fs from "fs";
 
 // ==========================================
-// 1. КОНФІГУРАЦІЯ (Колишній config.ts)
+// 1. КОНФІГУРАЦІЯ
 // ==========================================
 const CONFIG = {
   BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
-  ALLOWED_RESOURCES: [-1002563493364, -100136817688, -1002808281023],
+  ALLOWED_RESOURCES: [-1002557455848, -1002563493364, -1002808281023],
   ADMIN_CHAT_ID: -1002808281023,
   LOG_THREAD_ID: 3861,
   DB_PATH: "./storage.json",
@@ -14,7 +14,7 @@ const CONFIG = {
 };
 
 // ==========================================
-// 2. БАЗА ДАНИХ (Колишній storage.ts)
+// 2. БАЗА ДАНИХ
 // ==========================================
 interface Database {
   clicks: Record<string, number>;
@@ -53,7 +53,7 @@ function saveStorage(data: Database) {
 }
 
 // ==========================================
-// 3. ЛОГІКА ТА КЛАВІАТУРИ (Колишній logic.ts)
+// 3. ЛОГІКА ТА КЛАВІАТУРИ
 // ==========================================
 const checker = {
   hasRussian(text: string): boolean {
@@ -65,20 +65,18 @@ const checker = {
       .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
       .row()
       .url("Повна навігація 🗺", "https://t.me/murumishop/106")
-      .url("Канал з посилками 📦", "https://t.me/deliverymurumi")
-      .row()
-      .text("Я прочитав(ла) ✅", "click_confirm");
+      .url("Канал з посилками 📦", "https://t.me/deliverymurumi");
   },
 };
 
 // ==========================================
-// 4. ГОЛОВНА ЛОГІКА БОТА (Колишній bot.ts)
+// 4. ГОЛОВНА ЛОГІКА БОТА
 // ==========================================
 initStorage(); // Ініціалізуємо БД при старті
 
 const bot = new Bot(CONFIG.BOT_TOKEN);
 
-// Контроль чатів
+// 4.1. Контроль чатів (Забороняємо ліві групи)
 bot.on("message", async (ctx, next) => {
   const isAllowed = CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id);
   const isAdminChat = ctx.chat.id === CONFIG.ADMIN_CHAT_ID;
@@ -96,12 +94,37 @@ bot.on("message", async (ctx, next) => {
   await next();
 });
 
-// Команда перевірки (Мур -> Мяу)
+// 4.2. Команда перевірки (Мур -> Мяу)
 bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
-  await ctx.reply("Мяу 🐾", { reply_to_message_id: ctx.msg.message_id });
+  await ctx.reply("Мяу 🐾", {
+    reply_parameters: { message_id: ctx.msg.message_id },
+  });
 });
 
-// Авто-відповідь на нові пости в каналі
+// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ (ОСЬ ВАЖЛИВИЙ ФІКС!)
+bot.on("message", async (ctx, next) => {
+  // Перевіряємо, чи повідомлення надіслано від імені каналу (автоматичний форвард)
+  if (ctx.msg.sender_chat?.type === "channel") {
+    const channelId = ctx.msg.sender_chat.id;
+
+    // Якщо ми впізнали ID каналу (він є в нашому списку дозволених)
+    if (CONFIG.ALLOWED_RESOURCES.includes(channelId)) {
+      try {
+        await ctx.reply(CONFIG.POST_TEXT, {
+          reply_parameters: { message_id: ctx.msg.message_id }, // Робимо реплай на сам пост
+          reply_markup: checker.getPostKeyboard(),
+        });
+      } catch (e) {
+        console.error("Помилка при надсиланні кнопок під пост:", e);
+      }
+    }
+    return; // Зупиняємо ланцюжок, щоб мовний патруль не перевіряв цей пост
+  }
+
+  await next(); // Якщо це звичайне повідомлення від людини, йдемо далі
+});
+
+// 4.4. Авто-відповідь, якщо бота додали ПРЯМО В КАНАЛ (як адміна)
 bot.on("channel_post", async (ctx) => {
   if (CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id)) {
     try {
@@ -114,7 +137,7 @@ bot.on("channel_post", async (ctx) => {
   }
 });
 
-// Обробка кліків на кнопки
+// 4.5. Обробка кліків на кнопки
 bot.on("callback_query:data", async (ctx) => {
   const data = loadStorage();
   const key = ctx.callbackQuery.data;
@@ -125,10 +148,12 @@ bot.on("callback_query:data", async (ctx) => {
   await ctx.answerCallbackQuery("Дякуємо, що читаєте! Мур-мяу 🐾");
 });
 
-// Мовний патруль
+// 4.6. Мовний патруль
 bot.on("message:text", async (ctx) => {
-  // ІГНОРУЄМО повідомлення від каналу (авто-пересилки) та від інших ботів
-  if (ctx.senderChat || ctx.from?.is_bot) return;
+  // ІГНОРУЄМО ботів (щоб не сварити їх)
+  if (ctx.from?.is_bot) return;
+  // Також ігноруємо адмін чат
+  if (ctx.chat.id === CONFIG.ADMIN_CHAT_ID) return;
 
   if (checker.hasRussian(ctx.msg.text)) {
     const userId = ctx.from?.id;
@@ -158,13 +183,11 @@ bot.on("message:text", async (ctx) => {
       }
     } else {
       try {
-        // Спробуємо відповісти через новий, більш стабільний метод Telegram API
         await ctx.reply(
           `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`,
           { reply_parameters: { message_id: ctx.msg.message_id } },
         );
       } catch (err) {
-        // Якщо зробити реплай неможливо (наприклад, повідомлення вже видалили), відправляємо просто текстом
         await ctx.reply(
           `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`,
         );
@@ -173,7 +196,7 @@ bot.on("message:text", async (ctx) => {
   }
 });
 
-// Звіт та обнулення кожні 24 години в
+// 4.7. Звіт та обнулення кожні 24 години
 setInterval(async () => {
   const db = loadStorage();
   const now = new Date();
