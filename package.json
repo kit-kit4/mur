@@ -1,12 +1,9 @@
-
-
 {
   "name": "mur",
   "version": "1.0.0",
-  "main": "bot.ts",
-  "directories": {
-    "test": "test"
-  },
+  "description": "��#\u0000m\u0000u\u0000r\u0000\r\u0000 \u0000",
+  
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,68 +14,19 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "type": "module",
   "bugs": {
-   "url": "https://github.com/kit-kit4/mur/issues"
+    "url": "https://github.com/kit-kit4/mur/issues"
   },
   "homepage": "https://github.com/kit-kit4/mur#readme",
-  "description": "",
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
-    "@grammyjs/conversations": "^2.1.1",
-    "@grammyjs/files": "^1.2.0",
-    "@grammyjs/hydrate": "^1.6.0",
-    "@grammyjs/types": "^3.23.0",
-    "@prisma/client": "^7.3.0",
-    "@types/express": "^5.0.6",
-    "axios": "^1.13.5",
-    "better-sqlite3": "^12.6.2",
-    "body-parser": "^2.2.2",
-    "canvas": "^3.2.1",
-    "chartjs-node-canvas": "^5.0.0",
-    "cheerio": "^1.2.0",
-    "clipboardy": "^5.2.1",
-    "compression": "^1.8.1",
-    "cors": "^2.8.6",
-    "crypto": "^1.0.1",
-    "dayjs": "^1.11.19",
-    "dotenv": "^17.3.1",
-    "ejs": "^4.0.1",
-    "exceljs": "^4.4.0",
-    "express": "^5.2.1",
-    "express-fileupload": "^1.5.2",
-    "fastify": "^5.7.4",
-    "form-data": "^4.0.5",
-    "google-translate-api-x": "^10.7.2",
-    "grammy": "^1.40.0",
-    "helmet": "^8.1.0",
-    "iconv-lite": "^0.7.2",
-    "input": "^1.0.1",
-    "jsdom": "^28.1.0",
-    "languagedetect": "^2.0.0",
-    "luxon": "^3.7.2",
-    "multer": "^2.0.2",
-    "node-json-db": "^2.4.2",
-    "node-llama-cpp": "^3.15.1",
-    "pg": "^8.18.0",
-    "pino": "^10.3.0",
-    "puppeteer": "^24.36.1",
-    "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3",
-    "telegram": "^2.26.22",
-    "tesseract.js": "^7.0.0",
-    "uuid": "^13.0.0",
-    "xlsx": "^0.18.5",
-    "yt-dlp-exec": "^1.0.2",
-    "zod": "^4.3.6"
+    "grammy": "^1.41.1"
   },
   "devDependencies": {
-    "@types/axios": "^0.9.36",
-    "@types/luxon": "^3.7.1",
-    "@types/multer": "^2.0.0",
-    "@types/node": "^25.3.0",
-    "@types/pino": "^7.0.4",
-    "prisma": "^7.3.0",
+    "@types/node": "^25.5.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.2"
   }
 }
+
+
