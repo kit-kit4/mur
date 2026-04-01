@@ -5,13 +5,14 @@ import * as fs from "fs";
 // 1. КОНФІГУРАЦІЯ
 // ==========================================
 const CONFIG = {
-  BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
+  BOT_TOKEN: "8569832486:AAHu5bPAezoJLnt3z0emBl6FsYdc9sOCjHQ", // Обов'язково зміни токен після тестів!
   ALLOWED_RESOURCES: [
     -1002789684698, -1003200253794, -1002557455848, -1002563493364,
     -1002808281023,
   ],
   ADMIN_CHAT_ID: -1002808281023,
   LOG_THREAD_ID: 3861,
+  VIP_USERS: [8296806565, 5147076742, 992804916],
   DB_PATH: "./storage.json",
 
   // Оновлений текст із красивим HTML-форматуванням
@@ -87,7 +88,9 @@ const checker = {
       .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
       .row()
       .url("Як це працює? 🗺", "https://t.me/murumishop/106")
-      .url("Канал з посилками 📦", "https://t.me/deliverymurumi");
+      .url("Канал з посилками 📦", "https://t.me/deliverymurumi")
+      .row()
+      .url("Наш Чатик", "https://t.me/infomurumi");
   },
 };
 
@@ -116,6 +119,27 @@ bot.on("message", async (ctx, next) => {
     }
     return;
   }
+  await next();
+});
+
+// ==========================================
+// 4.1.5. Роздача сердечок VIP-користувачам
+// ==========================================
+bot.on("message", async (ctx, next) => {
+  const userId = ctx.from?.id;
+
+  // Якщо користувач є в нашому списку VIP
+  if (userId && CONFIG.VIP_USERS.includes(userId)) {
+    try {
+      // Ставимо сердечко (можеш змінити емодзі на 💘, 🍓, 💅 тощо)
+      await ctx.react("💘");
+    } catch (e) {
+      console.error(`Не зміг поставити реакцію користувачу ${userId}`);
+    }
+  }
+
+  // Обов'язково викликаємо next(), щоб бот не зупинився
+  // і пішов перевіряти мову чи інші команди далі!
   await next();
 });
 
