@@ -13,7 +13,26 @@ const CONFIG = {
   ADMIN_CHAT_ID: -1002808281023,
   LOG_THREAD_ID: 3861,
   DB_PATH: "./storage.json",
-  POST_TEXT: `нагадування від Мурумі!\n\nХочеш тут фігурку? \nПиши Бронь + скрін/назва у коментарях! \n\nОплата виключно на ФОП (це офіційний рахунок бізнесу).\n\nПисати про оплату може ТІЛЬКИ @murumich. \n\nЗв'язок/Адмін: @murumich\nСпілкування лише українською.`,
+
+  // Оновлений текст із красивим HTML-форматуванням
+  POST_TEXT: `<i>НАГАДУВАННЯ</i> від Мурумі!
+
+Хочеш тут фігурку? 
+<b>Пиши Бронь</b> + скрін/назва у коментарях! 
+
+Оплата виключно на ФОП (це офіційний рахунок бізнесу).
+
+<blockquote>Писати про оплату може ТІЛЬКИ @murumich. 
+
+<prem>5429605292331533576+💌</prem> Зв'язок/Адмін: @murumich</blockquote>
+<u>Спілкування лише українською.</u>`,
+};
+
+// Функція для перетворення твого тегу в преміум-емодзі Telegram
+const formatPremiumEmoji = (text: string): string => {
+  return text.replace(/<prem>(\d+)\+(.*?)<\/prem>/g, (match, id, emoji) => {
+    return `<tg-emoji emoji-id="${id}">${emoji}</tg-emoji>`;
+  });
 };
 
 // ==========================================
@@ -79,6 +98,9 @@ initStorage(); // Ініціалізуємо БД при старті
 
 const bot = new Bot(CONFIG.BOT_TOKEN);
 
+// Кеш для збереження ID альбомів (media_group_id), щоб не відповідати на кожне фото
+const processedMediaGroups = new Set<string>();
+
 // 4.1. Контроль чатів (Забороняємо ліві групи)
 bot.on("message", async (ctx, next) => {
   const isAllowed = CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id);
@@ -104,35 +126,54 @@ bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
   });
 });
 
-// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ (ОСЬ ВАЖЛИВИЙ ФІКС!)
+// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ
 bot.on("message", async (ctx, next) => {
-  // Перевіряємо, чи повідомлення надіслано від імені каналу (автоматичний форвард)
   if (ctx.msg.sender_chat?.type === "channel") {
     const channelId = ctx.msg.sender_chat.id;
 
-    // Якщо ми впізнали ID каналу (він є в нашому списку дозволених)
     if (CONFIG.ALLOWED_RESOURCES.includes(channelId)) {
+      // ПЕРЕВІРКА НА АЛЬБОМ: Якщо це фото з альбому, і ми його вже обробляли - ігноруємо
+      const mediaGroupId = ctx.msg.media_group_id;
+      if (mediaGroupId) {
+        if (processedMediaGroups.has(mediaGroupId)) return;
+
+        // Запам'ятовуємо цей альбом і видаляємо з пам'яті через 60 секунд
+        processedMediaGroups.add(mediaGroupId);
+        setTimeout(() => processedMediaGroups.delete(mediaGroupId), 60000);
+      }
+
       try {
-        await ctx.reply(CONFIG.POST_TEXT, {
-          reply_parameters: { message_id: ctx.msg.message_id }, // Робимо реплай на сам пост
+        await ctx.reply(formatPremiumEmoji(CONFIG.POST_TEXT), {
+          reply_parameters: { message_id: ctx.msg.message_id },
           reply_markup: checker.getPostKeyboard(),
+          parse_mode: "HTML",
         });
       } catch (e) {
         console.error("Помилка при надсиланні кнопок під пост:", e);
       }
     }
-    return; // Зупиняємо ланцюжок, щоб мовний патруль не перевіряв цей пост
+    return;
   }
 
-  await next(); // Якщо це звичайне повідомлення від людини, йдемо далі
+  await next();
 });
 
 // 4.4. Авто-відповідь, якщо бота додали ПРЯМО В КАНАЛ (як адміна)
 bot.on("channel_post", async (ctx) => {
   if (CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id)) {
+    // ПЕРЕВІРКА НА АЛЬБОМ ДЛЯ КАНАЛУ
+    const mediaGroupId = ctx.msg.media_group_id;
+    if (mediaGroupId) {
+      if (processedMediaGroups.has(mediaGroupId)) return;
+
+      processedMediaGroups.add(mediaGroupId);
+      setTimeout(() => processedMediaGroups.delete(mediaGroupId), 60000);
+    }
+
     try {
-      await ctx.reply(CONFIG.POST_TEXT, {
+      await ctx.reply(formatPremiumEmoji(CONFIG.POST_TEXT), {
         reply_markup: checker.getPostKeyboard(),
+        parse_mode: "HTML",
       });
     } catch (e) {
       console.error("Помилка при надсиланні посту:", e);
@@ -153,9 +194,7 @@ bot.on("callback_query:data", async (ctx) => {
 
 // 4.6. Мовний патруль
 bot.on("message:text", async (ctx) => {
-  // ІГНОРУЄМО ботів (щоб не сварити їх)
   if (ctx.from?.is_bot) return;
-  // Також ігноруємо адмін чат
   if (ctx.chat.id === CONFIG.ADMIN_CHAT_ID) return;
 
   if (checker.hasRussian(ctx.msg.text)) {

@@ -44,13 +44,20 @@ var fs = require("fs");
 var CONFIG = {
     BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
     ALLOWED_RESOURCES: [
-        -1002557455848, -1002563493364, -1002557455848, -1002563493364,
+        -1002789684698, -1003200253794, -1002557455848, -1002563493364,
         -1002808281023,
     ],
     ADMIN_CHAT_ID: -1002808281023,
     LOG_THREAD_ID: 3861,
     DB_PATH: "./storage.json",
-    POST_TEXT: "\u043D\u0430\u0433\u0430\u0434\u0443\u0432\u0430\u043D\u043D\u044F \u0432\u0456\u0434 \u041C\u0443\u0440\u0443\u043C\u0456!\n\n\u0425\u043E\u0447\u0435\u0448 \u0442\u0443\u0442 \u0444\u0456\u0433\u0443\u0440\u043A\u0443? \n\u041F\u0438\u0448\u0438 \u0411\u0440\u043E\u043D\u044C + \u0441\u043A\u0440\u0456\u043D/\u043D\u0430\u0437\u0432\u0430 \u0443 \u043A\u043E\u043C\u0435\u043D\u0442\u0430\u0440\u044F\u0445! \n\n\u041E\u043F\u043B\u0430\u0442\u0430 \u0432\u0438\u043A\u043B\u044E\u0447\u043D\u043E \u043D\u0430 \u0424\u041E\u041F (\u0446\u0435 \u043E\u0444\u0456\u0446\u0456\u0439\u043D\u0438\u0439 \u0440\u0430\u0445\u0443\u043D\u043E\u043A \u0431\u0456\u0437\u043D\u0435\u0441\u0443).\n\n\u041F\u0438\u0441\u0430\u0442\u0438 \u043F\u0440\u043E \u043E\u043F\u043B\u0430\u0442\u0443 \u043C\u043E\u0436\u0435 \u0422\u0406\u041B\u042C\u041A\u0418 @murumich. \n\n\u0417\u0432'\u044F\u0437\u043E\u043A/\u0410\u0434\u043C\u0456\u043D: @murumich\n\u0421\u043F\u0456\u043B\u043A\u0443\u0432\u0430\u043D\u043D\u044F \u043B\u0438\u0448\u0435 \u0443\u043A\u0440\u0430\u0457\u043D\u0441\u044C\u043A\u043E\u044E.",
+    // Оновлений текст із красивим HTML-форматуванням
+    POST_TEXT: "<i>\u041D\u0410\u0413\u0410\u0414\u0423\u0412\u0410\u041D\u041D\u042F</i> \u0432\u0456\u0434 \u041C\u0443\u0440\u0443\u043C\u0456!\n\n\u0425\u043E\u0447\u0435\u0448 \u0442\u0443\u0442 \u0444\u0456\u0433\u0443\u0440\u043A\u0443? \n<b>\u041F\u0438\u0448\u0438 \u0411\u0440\u043E\u043D\u044C</b> + \u0441\u043A\u0440\u0456\u043D/\u043D\u0430\u0437\u0432\u0430 \u0443 \u043A\u043E\u043C\u0435\u043D\u0442\u0430\u0440\u044F\u0445! \n\n\u041E\u043F\u043B\u0430\u0442\u0430 \u0432\u0438\u043A\u043B\u044E\u0447\u043D\u043E \u043D\u0430 \u0424\u041E\u041F (\u0446\u0435 \u043E\u0444\u0456\u0446\u0456\u0439\u043D\u0438\u0439 \u0440\u0430\u0445\u0443\u043D\u043E\u043A \u0431\u0456\u0437\u043D\u0435\u0441\u0443).\n\n<blockquote>\u041F\u0438\u0441\u0430\u0442\u0438 \u043F\u0440\u043E \u043E\u043F\u043B\u0430\u0442\u0443 \u043C\u043E\u0436\u0435 \u0422\u0406\u041B\u042C\u041A\u0418 @murumich. \n\n<prem>5429605292331533576+\uD83D\uDC8C</prem> \u0417\u0432'\u044F\u0437\u043E\u043A/\u0410\u0434\u043C\u0456\u043D: @murumich</blockquote>\n<u>\u0421\u043F\u0456\u043B\u043A\u0443\u0432\u0430\u043D\u043D\u044F \u043B\u0438\u0448\u0435 \u0443\u043A\u0440\u0430\u0457\u043D\u0441\u044C\u043A\u043E\u044E.</u>",
+};
+// Функція для перетворення твого тегу в преміум-емодзі Telegram
+var formatPremiumEmoji = function (text) {
+    return text.replace(/<prem>(\d+)\+(.*?)<\/prem>/g, function (match, id, emoji) {
+        return "<tg-emoji emoji-id=\"".concat(id, "\">").concat(emoji, "</tg-emoji>");
+    });
 };
 var defaultData = {
     clicks: {},
@@ -100,6 +107,8 @@ var checker = {
 // ==========================================
 initStorage(); // Ініціалізуємо БД при старті
 var bot = new grammy_1.Bot(CONFIG.BOT_TOKEN);
+// Кеш для збереження ID альбомів (media_group_id), щоб не відповідати на кожне фото
+var processedMediaGroups = new Set();
 // 4.1. Контроль чатів (Забороняємо ліві групи)
 bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0, function () {
     var isAllowed, isAdminChat, e_1;
@@ -143,9 +152,9 @@ bot.hears(/^[Мм]ур[!?.]*$/i, function (ctx) { return __awaiter(void 0, void 
         }
     });
 }); });
-// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ (ОСЬ ВАЖЛИВИЙ ФІКС!)
+// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ
 bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0, function () {
-    var channelId, e_2;
+    var channelId, mediaGroupId_1, e_2;
     var _a;
     return __generator(this, function (_b) {
         switch (_b.label) {
@@ -153,12 +162,21 @@ bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0
                 if (!(((_a = ctx.msg.sender_chat) === null || _a === void 0 ? void 0 : _a.type) === "channel")) return [3 /*break*/, 5];
                 channelId = ctx.msg.sender_chat.id;
                 if (!CONFIG.ALLOWED_RESOURCES.includes(channelId)) return [3 /*break*/, 4];
+                mediaGroupId_1 = ctx.msg.media_group_id;
+                if (mediaGroupId_1) {
+                    if (processedMediaGroups.has(mediaGroupId_1))
+                        return [2 /*return*/];
+                    // Запам'ятовуємо цей альбом і видаляємо з пам'яті через 60 секунд
+                    processedMediaGroups.add(mediaGroupId_1);
+                    setTimeout(function () { return processedMediaGroups.delete(mediaGroupId_1); }, 60000);
+                }
                 _b.label = 1;
             case 1:
                 _b.trys.push([1, 3, , 4]);
-                return [4 /*yield*/, ctx.reply(CONFIG.POST_TEXT, {
-                        reply_parameters: { message_id: ctx.msg.message_id }, // Робимо реплай на сам пост
+                return [4 /*yield*/, ctx.reply(formatPremiumEmoji(CONFIG.POST_TEXT), {
+                        reply_parameters: { message_id: ctx.msg.message_id },
                         reply_markup: checker.getPostKeyboard(),
+                        parse_mode: "HTML",
                     })];
             case 2:
                 _b.sent();
@@ -167,26 +185,34 @@ bot.on("message", function (ctx, next) { return __awaiter(void 0, void 0, void 0
                 e_2 = _b.sent();
                 console.error("Помилка при надсиланні кнопок під пост:", e_2);
                 return [3 /*break*/, 4];
-            case 4: return [2 /*return*/]; // Зупиняємо ланцюжок, щоб мовний патруль не перевіряв цей пост
+            case 4: return [2 /*return*/];
             case 5: return [4 /*yield*/, next()];
             case 6:
-                _b.sent(); // Якщо це звичайне повідомлення від людини, йдемо далі
+                _b.sent();
                 return [2 /*return*/];
         }
     });
 }); });
 // 4.4. Авто-відповідь, якщо бота додали ПРЯМО В КАНАЛ (як адміна)
 bot.on("channel_post", function (ctx) { return __awaiter(void 0, void 0, void 0, function () {
-    var e_3;
+    var mediaGroupId_2, e_3;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 if (!CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id)) return [3 /*break*/, 4];
+                mediaGroupId_2 = ctx.msg.media_group_id;
+                if (mediaGroupId_2) {
+                    if (processedMediaGroups.has(mediaGroupId_2))
+                        return [2 /*return*/];
+                    processedMediaGroups.add(mediaGroupId_2);
+                    setTimeout(function () { return processedMediaGroups.delete(mediaGroupId_2); }, 60000);
+                }
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 3, , 4]);
-                return [4 /*yield*/, ctx.reply(CONFIG.POST_TEXT, {
+                return [4 /*yield*/, ctx.reply(formatPremiumEmoji(CONFIG.POST_TEXT), {
                         reply_markup: checker.getPostKeyboard(),
+                        parse_mode: "HTML",
                     })];
             case 2:
                 _a.sent();
@@ -223,10 +249,8 @@ bot.on("message:text", function (ctx) { return __awaiter(void 0, void 0, void 0,
     return __generator(this, function (_c) {
         switch (_c.label) {
             case 0:
-                // ІГНОРУЄМО ботів (щоб не сварити їх)
                 if ((_a = ctx.from) === null || _a === void 0 ? void 0 : _a.is_bot)
                     return [2 /*return*/];
-                // Також ігноруємо адмін чат
                 if (ctx.chat.id === CONFIG.ADMIN_CHAT_ID)
                     return [2 /*return*/];
                 if (!checker.hasRussian(ctx.msg.text)) return [3 /*break*/, 9];
