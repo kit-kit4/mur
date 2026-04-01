@@ -1,90 +1,156 @@
 import { Bot, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import * as fs from "fs";
+import * as os from "os";
+import { execSync } from "child_process";
 
 // ==========================================
 // 1. КОНФІГУРАЦІЯ
 // ==========================================
-const CONFIG = {
-  BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
-  BOT_ADMINS: [5147076742],
-  ALLOWED_RESOURCES: [
+
+interface BotConfig {
+  name: string;
+  token: string;
+  admins: number[];
+  allowedResources: number[];
+  adminChatId: number;
+  vipUsers: number[];
+  threads: {
+    uptime: number; // Логи запуску/вимкнення
+    hosting: number; // Навантаження RAM/SSD (старт + 24г)
+    db: number; // Стан бази даних
+    logs: number; // Спроби додавання, помилки, патруль
+    clicks: number; // Звіти по кнопках
+  };
+  dbPath: string;
+  postText: string;
+}
+
+// 🐱 Налаштування МУР-бота
+const MUR_CONFIG: BotConfig = {
+  name: "Мур-БОТ",
+  token: "8569832486:AAHu5bPAezoJLnt3z0emBl6FsYdc9sOCjHQ", // Обов'язково зміни токен після тестів!
+  admins: [5147076742],
+  allowedResources: [
     -1002789684698, -1003200253794, -1002557455848, -1002563493364,
     -1003872064368, -1002808281023, 5147076742, 8296806565, 987654321,
-    1122334455,
   ],
-  ADMIN_CHAT_ID: -1002808281023,
-  LOG_THREAD_ID: 3861,
-  VIP_USERS: [8296806565, 987654321, 1122334455],
-  DB_PATH: "./storage.json",
-
-  // Оновлений текст із красивим HTML-форматуванням
-  POST_TEXT: `<i>НАГАДУВАННЯ</i> від Мурумі!
-
-Хочеш тут фігурку? 
-<b>Пиши Бронь</b> + скрін/назва у коментарях! 
-
-Оплата виключно на ФОП (це офіційний рахунок бізнесу).
-
-<blockquote>Писати про оплату може ТІЛЬКИ @murumich. 
-
-<prem>5429605292331533576+💌</prem> Зв'язок/Адмін: @murumich</blockquote>
-<u>Спілкування лише українською.</u>`,
-};
-
-// Функція для перетворення твого тегу в преміум-емодзі Telegram
-const formatPremiumEmoji = (text: string): string => {
-  return text.replace(/<prem>(\d+)\+(.*?)<\/prem>/g, (match, id, emoji) => {
-    return `<tg-emoji emoji-id="${id}">${emoji}</tg-emoji>`;
-  });
-};
-
-// ==========================================
-// 2. БАЗА ДАНИХ
-// ==========================================
-interface Database {
-  clicks: Record<string, number>;
-  warnings: Record<number, number>;
-  lastReset: string;
-}
-
-const defaultData: Database = {
-  clicks: {},
-  warnings: {},
-  lastReset: new Date().toISOString(),
-};
-
-function initStorage() {
-  if (!fs.existsSync(CONFIG.DB_PATH)) {
-    console.log("🐾 Створюю новий файл бази даних storage.json...");
-    saveStorage(defaultData);
-  }
-}
-
-function loadStorage(): Database {
-  try {
-    if (!fs.existsSync(CONFIG.DB_PATH)) {
-      initStorage();
-    }
-    const data = fs.readFileSync(CONFIG.DB_PATH, "utf-8");
-    return JSON.parse(data);
-  } catch (e) {
-    console.error("Помилка читання бази, повертаю дефолт:", e);
-    return defaultData;
-  }
-}
-
-function saveStorage(data: Database) {
-  fs.writeFileSync(CONFIG.DB_PATH, JSON.stringify(data, null, 2));
-}
-
-// ==========================================
-// 3. ЛОГІКА ТА КЛАВІАТУРИ
-// ==========================================
-const checker = {
-  hasRussian(text: string): boolean {
-    return /[ёъыэ]/i.test(text);
+  adminChatId: -1002808281023,
+  vipUsers: [8296806565, 987654321, 5147076742],
+  threads: {
+    uptime: 530,
+    hosting: 3986,
+    db: 3986,
+    logs: 3861,
+    clicks: 10,
   },
-  getPostKeyboard() {
+  dbPath: "./mur_storage.json",
+  postText: `<i>НАГАДУВАННЯ</i> від Мурумі!\n\nХочеш тут фігурку? \n<b>Пиши Бронь</b> + скрін/назва у коментарях! \n\nОплата виключно на ФОП (це офіційний рахунок бізнесу).\n\n<blockquote>Писати про оплату може ТІЛЬКИ @murumich. \n\n<prem>5429605292331533576+💌</prem> Зв'язок/Адмін: @murumich</blockquote>\n<u>Спілкування лише українською.</u>`,
+};
+
+// 🦊 Налаштування ШІГІ-бота (Заглушка)
+const SHIGI_CONFIG: BotConfig = {
+  name: "Шігі-БОТ",
+  token: "ТОКЕН_ШІГІ_ТУТ",
+  admins: [5147076742],
+  allowedResources: [-1001111111111],
+  adminChatId: -1001111111111,
+  vipUsers: [],
+  threads: {
+    uptime: 1,
+    hosting: 1,
+    db: 1,
+    logs: 1,
+    clicks: 1,
+  },
+  dbPath: "./shigi_storage.json",
+  postText: `<i>НАГАДУВАННЯ</i> від Шігі!\n\nТут інший текст...`,
+};
+
+// ==========================================
+// 2. СИСТЕМНІ УТИЛІТИ ТА ЕМОДЗІ
+// ==========================================
+
+const formatPremiumEmoji = (text: string) =>
+  text.replace(
+    /<prem>(\d+)\+(.*?)<\/prem>/g,
+    (m, id, emo) => `<tg-emoji emoji-id="${id}">${emo}</tg-emoji>`,
+  );
+const hasRussian = (text: string) => /[ёъыэ]/i.test(text);
+
+const getSystemInfo = () => {
+  const totalRam = (os.totalmem() / 1024 ** 3).toFixed(2);
+  const freeRam = (os.freemem() / 1024 ** 3).toFixed(2);
+  const usedRam = (Number(totalRam) - Number(freeRam)).toFixed(2);
+  const ramPercent = ((Number(usedRam) / Number(totalRam)) * 100).toFixed(0);
+
+  let ssdInfo = "Локальний тест (Windows)";
+  // Команда df працює тільки на Linux (на твоєму хостингу)
+  if (os.platform() !== "win32") {
+    try {
+      const df = execSync("df -h / | tail -1").toString().trim().split(/\s+/);
+      ssdInfo = `Вживано ${df[2]} / Вільно ${df[3]} (Загалом ${df[1]})`;
+    } catch (e) {
+      ssdInfo = "Помилка читання SSD";
+    }
+  }
+
+  return {
+    ram: `Вживано ${usedRam}GB / ${totalRam}GB (${ramPercent}%)`,
+    ssd: ssdInfo,
+  };
+};
+
+// ==========================================
+// 3. ФАБРИКА БОТІВ
+// ==========================================
+
+function startBot(config: BotConfig) {
+  const bot = new Bot(config.token);
+  const processedMediaGroups = new Set<string>();
+
+  const initDb = () => {
+    if (!fs.existsSync(config.dbPath))
+      fs.writeFileSync(
+        config.dbPath,
+        JSON.stringify({
+          clicks: {},
+          warnings: {},
+          lastReset: new Date().toISOString(),
+        }),
+      );
+  };
+  const loadDb = () => {
+    initDb();
+    return JSON.parse(fs.readFileSync(config.dbPath, "utf-8"));
+  };
+  const saveDb = (data: any) =>
+    fs.writeFileSync(config.dbPath, JSON.stringify(data, null, 2));
+
+  // Розумна відправка логів (якщо гілки немає - шле в загальний чат)
+  const logTo = async (threadId: number, message: string) => {
+    try {
+      await bot.api.sendMessage(config.adminChatId, message, {
+        message_thread_id: threadId,
+        parse_mode: "HTML",
+        //disable_web_page_preview: true,
+      });
+    } catch (e: any) {
+      if (e.description?.includes("message thread not found")) {
+        // Якщо гілки немає, відправляємо просто в групу адмінів
+        await bot.api
+          .sendMessage(
+            config.adminChatId,
+            `⚠️ <i>(Гілку не знайдено, надсилаю сюди)</i>\n\n${message}`,
+            { parse_mode: "HTML" },
+          )
+          .catch(() => {});
+      } else {
+        console.error(`[${config.name}] Помилка логування:`, e.message);
+      }
+    }
+  };
+
+  const getKeyboard = () => {
     return new InlineKeyboard()
       .url("Відгуки 📝", "https://t.me/infomurumi/7")
       .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
@@ -93,282 +159,233 @@ const checker = {
       .url("Канал з посилками 📦", "https://t.me/deliverymurumi")
       .row()
       .url("Наш Чатик", "https://t.me/infomurumi");
-  },
-};
+  };
 
-// ==========================================
-// 4. ГОЛОВНА ЛОГІКА БОТА
-// ==========================================
-initStorage(); // Ініціалізуємо БД при старті
+  initDb();
 
-const bot = new Bot(CONFIG.BOT_TOKEN);
-
-// Кеш для збереження ID альбомів (media_group_id), щоб не відповідати на кожне фото
-const processedMediaGroups = new Set<string>();
-
-// 4.1. Контроль чатів (Забороняємо ліві групи)
-bot.on("message", async (ctx, next) => {
-  const isAllowed = CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id);
-  const isAdminChat = ctx.chat.id === CONFIG.ADMIN_CHAT_ID;
-
-  if (!isAllowed && !isAdminChat) {
-    console.log(`Спроба додати в лівий чат: ${ctx.chat.id}. Ліваю...`);
-    try {
-      await ctx.leaveChat();
-      console.log(`Успішно вийшов з чату ${ctx.chat.id}`);
-    } catch (e) {
-      console.log(`Не зміг вийти з ${ctx.chat.id}. Ігноруємо.`);
+  // 1. Контроль додавань
+  bot.on("message", async (ctx, next) => {
+    if (
+      !config.allowedResources.includes(ctx.chat.id) &&
+      ctx.chat.id !== config.adminChatId
+    ) {
+      await logTo(
+        config.threads.logs,
+        `⚠️ <b>Спроба додавання!</b>\nЧат: <code>${ctx.chat.id}</code>\nДія: <b>Ліваю...</b>`,
+      );
+      try {
+        await ctx.leaveChat();
+      } catch (e) {}
+      return;
     }
-    return;
-  }
-  await next();
-});
-
-// ==========================================
-// 4.1.5. Роздача сердечок VIP-користувачам
-// ==========================================
-bot.on("message", async (ctx, next) => {
-  const userId = ctx.from?.id;
-
-  // Якщо користувач є в нашому списку VIP
-  if (userId && CONFIG.VIP_USERS.includes(userId)) {
-    try {
-      // Ставимо сердечко (можеш змінити емодзі на 💘, 🍓, 💅 тощо)
-      await ctx.react("💘");
-    } catch (e) {
-      console.error(`Не зміг поставити реакцію користувачу ${userId}`);
-    }
-  }
-
-  // Обов'язково викликаємо next(), щоб бот не зупинився
-  // і пішов перевіряти мову чи інші команди далі!
-  await next();
-});
-
-// 4.2. Команда перевірки (Мур -> Мяу)
-bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
-  await ctx.reply("Мяу 🐾", {
-    reply_parameters: { message_id: ctx.msg.message_id },
+    await next();
   });
-});
 
-// Команда для ручного додавання кнопок до старих постів
-bot.command("postREP", async (ctx) => {
-  const userId = ctx.from?.id;
-
-  // 1. Перевірка прав (Дропаємо всіх, кого немає в масиві BOT_ADMINS)
-  if (!userId || !CONFIG.BOT_ADMINS.includes(userId)) {
-    return; // Бот мовчки ігнорує
-  }
-
-  // 2. Отримуємо аргументи команди (те, що йде після /postREP)
-  // ctx.match зберігає весь текст після команди. Ділимо його по пробілу.
-  const args = ctx.match.split(" ");
-
-  if (args.length !== 2) {
-    await ctx.reply(
-      "❌ Неправильний формат.\nВикористовуй: <code>/postREP -100xxxxxx message_id</code>",
-      {
-        parse_mode: "HTML",
-        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
-      },
-    );
-    return;
-  }
-
-  const chatId = Number(args[0]);
-  const messageId = Number(args[1]);
-
-  if (isNaN(chatId) || isNaN(messageId)) {
-    await ctx.reply("❌ ID чату та ID повідомлення мають бути числами!", {
-      reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
-    });
-    return;
-  }
-
-  // 3. Відправляємо повідомлення під старий пост
-  try {
-    await ctx.api.sendMessage(chatId, formatPremiumEmoji(CONFIG.POST_TEXT), {
-      reply_parameters: { message_id: messageId },
-      reply_markup: checker.getPostKeyboard(),
-      parse_mode: "HTML",
-    });
-
-    // Відповідаємо адміну, що все вийшло (з реплаєм на команду)
-    await ctx.reply(
-      `✅ Кнопки успішно додано до посту <code>${messageId}</code>!`,
-      {
-        parse_mode: "HTML",
-        reply_parameters: { message_id: ctx.msg.message_id }, // <--- Реплай на команду
-      },
-    );
-  } catch (error) {
-    console.error("Помилка при додаванні до старого посту:", error);
-    await ctx.reply(
-      "❌ Помилка API. Перевір, чи правильні ID та чи є бот у тому чаті з правами адміна.",
-      { reply_parameters: { message_id: ctx.msg.message_id } }, // <--- Реплай на команду
-    );
-  }
-});
-
-// 4.3. АВТОВІДПОВІДЬ В ЧАТІ НА ПОСТИ З КАНАЛУ
-bot.on("message", async (ctx, next) => {
-  if (ctx.msg.sender_chat?.type === "channel") {
-    const channelId = ctx.msg.sender_chat.id;
-
-    if (CONFIG.ALLOWED_RESOURCES.includes(channelId)) {
-      // ПЕРЕВІРКА НА АЛЬБОМ: Якщо це фото з альбому, і ми його вже обробляли - ігноруємо
-      const mediaGroupId = ctx.msg.media_group_id;
-      if (mediaGroupId) {
-        if (processedMediaGroups.has(mediaGroupId)) return;
-
-        // Запам'ятовуємо цей альбом і видаляємо з пам'яті через 60 секунд
-        processedMediaGroups.add(mediaGroupId);
-        setTimeout(() => processedMediaGroups.delete(mediaGroupId), 60000);
-      }
-
+  // 2. VIP сердечка
+  bot.on("message", async (ctx, next) => {
+    if (ctx.from && config.vipUsers.includes(ctx.from.id)) {
       try {
-        await ctx.reply(formatPremiumEmoji(CONFIG.POST_TEXT), {
-          reply_parameters: { message_id: ctx.msg.message_id },
-          reply_markup: checker.getPostKeyboard(),
-          parse_mode: "HTML",
-        });
-      } catch (e) {
-        console.error("Помилка при надсиланні кнопок під пост:", e);
-      }
+        await ctx.react("💘");
+      } catch (e) {}
     }
-    return;
-  }
+    await next();
+  });
 
-  await next();
-});
+  // 3. Команда Мур
+  bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
+    await ctx.reply("Мяу 🐾", {
+      reply_parameters: { message_id: ctx.msg.message_id },
+    });
+  });
 
-// 4.4. Авто-відповідь, якщо бота додали ПРЯМО В КАНАЛ (як адміна)
-bot.on("channel_post", async (ctx) => {
-  if (CONFIG.ALLOWED_RESOURCES.includes(ctx.chat.id)) {
-    // ПЕРЕВІРКА НА АЛЬБОМ ДЛЯ КАНАЛУ
-    const mediaGroupId = ctx.msg.media_group_id;
-    if (mediaGroupId) {
-      if (processedMediaGroups.has(mediaGroupId)) return;
+  // 4. Команда /postREP
+  bot.command("postREP", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !config.admins.includes(userId)) return;
 
-      processedMediaGroups.add(mediaGroupId);
-      setTimeout(() => processedMediaGroups.delete(mediaGroupId), 60000);
+    const args = ctx.match.split(" ");
+    if (args.length !== 2) {
+      await ctx.reply(
+        "❌ Формат: <code>/postREP -100xxxxxx message_id</code>",
+        {
+          parse_mode: "HTML",
+          reply_parameters: { message_id: ctx.msg.message_id },
+        },
+      );
+      return;
+    }
+
+    const chatId = Number(args[0]);
+    const messageId = Number(args[1]);
+
+    if (isNaN(chatId) || isNaN(messageId)) {
+      await ctx.reply("❌ ID чату та ID повідомлення мають бути числами!", {
+        reply_parameters: { message_id: ctx.msg.message_id },
+      });
+      return;
     }
 
     try {
-      await ctx.reply(formatPremiumEmoji(CONFIG.POST_TEXT), {
-        reply_markup: checker.getPostKeyboard(),
+      await ctx.api.sendMessage(chatId, formatPremiumEmoji(config.postText), {
+        reply_parameters: { message_id: messageId },
+        reply_markup: getKeyboard(),
         parse_mode: "HTML",
+      });
+      await ctx.reply(`✅ Кнопки додано!`, {
+        reply_parameters: { message_id: ctx.msg.message_id },
       });
     } catch (e) {
-      console.error("Помилка при надсиланні посту:", e);
-    }
-  }
-});
-
-// 4.5. Обробка кліків на кнопки
-bot.on("callback_query:data", async (ctx) => {
-  const data = loadStorage();
-  const key = ctx.callbackQuery.data;
-
-  data.clicks[key] = (data.clicks[key] || 0) + 1;
-  saveStorage(data);
-
-  await ctx.answerCallbackQuery("Дякуємо, що читаєте! Мур-мяу 🐾");
-});
-
-// 4.6. Мовний патруль
-bot.on("message:text", async (ctx) => {
-  if (ctx.from?.is_bot) return;
-  if (ctx.chat.id === CONFIG.ADMIN_CHAT_ID) return;
-
-  if (checker.hasRussian(ctx.msg.text)) {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-
-    const db = loadStorage();
-    db.warnings[userId] = (db.warnings[userId] || 0) + 1;
-    saveStorage(db);
-
-    if (db.warnings[userId] >= 3) {
-      const cleanChatId = ctx.chat.id.toString().replace("-100", "");
-      try {
-        await bot.api.sendMessage(
-          CONFIG.ADMIN_CHAT_ID,
-          `🚨 **ПОРУШЕННЯ МОВНИХ ПРАВИЛ**\n\n` +
-            `👤 **Користувач:** ${ctx.from.first_name} (@${ctx.from.username || "немає"})\n` +
-            `🆔 **ID:** \`${userId}\`\n` +
-            `⏰ **Час:** ${new Date().toLocaleString("uk-UA")}\n` +
-            `🔗 [Посилання на повідомлення](https://t.me/c/${cleanChatId}/${ctx.msg.message_id})`,
-          {
-            message_thread_id: CONFIG.LOG_THREAD_ID,
-            parse_mode: "Markdown",
-          },
-        );
-      } catch (err) {
-        console.error("Не зміг відправити звіт в адмін чат.");
-      }
-    } else {
-      try {
-        await ctx.reply(
-          `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`,
-          { reply_parameters: { message_id: ctx.msg.message_id } },
-        );
-      } catch (err) {
-        await ctx.reply(
-          `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`,
-        );
-      }
-    }
-  }
-});
-
-// 4.7. Звіт та обнулення кожні 24 години
-setInterval(async () => {
-  const db = loadStorage();
-  const now = new Date();
-  const lastReset = new Date(db.lastReset);
-
-  if (now.getTime() - lastReset.getTime() > 24 * 60 * 60 * 1000) {
-    let report = "📈 **ДОБОВИЙ ЗВІТ ПО КЛІКАХ**\n\n";
-
-    if (Object.keys(db.clicks).length === 0) {
-      report += "Сьогодні ніхто нікуди не тицяв 😿";
-    } else {
-      for (const [btn, count] of Object.entries(db.clicks)) {
-        report += `🔹 **${btn}**: ${count} разів\n`;
-      }
-    }
-
-    try {
-      await bot.api.sendMessage(CONFIG.ADMIN_CHAT_ID, report, {
-        message_thread_id: CONFIG.LOG_THREAD_ID,
-        parse_mode: "Markdown",
+      await ctx.reply("❌ Помилка API. Перевір ID та права бота.", {
+        reply_parameters: { message_id: ctx.msg.message_id },
       });
-    } catch (err) {
-      console.error("Не зміг відправити добовий звіт:", err);
     }
+  });
 
-    db.clicks = {};
-    db.lastReset = now.toISOString();
-    saveStorage(db);
-  }
-}, 60000);
+  // 5. Обробка постів з альбомами (канал + чат)
+  const sendPostMarkup = async (ctx: any) => {
+    const mgId = ctx.msg.media_group_id;
+    if (mgId) {
+      if (processedMediaGroups.has(mgId)) return;
+      processedMediaGroups.add(mgId);
+      setTimeout(() => processedMediaGroups.delete(mgId), 60000);
+    }
+    try {
+      await ctx.reply(formatPremiumEmoji(config.postText), {
+        reply_parameters: ctx.msg.message_id
+          ? { message_id: ctx.msg.message_id }
+          : undefined,
+        reply_markup: getKeyboard(),
+        parse_mode: "HTML",
+      });
+    } catch (e) {}
+  };
 
-// Глобальний обробник помилок
-bot.catch((err) => {
-  const ctx = err.ctx;
-  console.error(`[Помилка] Апдейт ${ctx.update.update_id}:`);
-  const e = err.error;
-  if (e instanceof GrammyError) {
-    console.error("Помилка від Telegram:", e.description);
-  } else if (e instanceof HttpError) {
-    console.error("Немає зв'язку з Telegram:", e);
-  } else {
-    console.error("Невідома помилка:", e);
-  }
-});
+  bot.on("channel_post", async (ctx) => {
+    if (config.allowedResources.includes(ctx.chat.id))
+      await sendPostMarkup(ctx);
+  });
 
-// Запуск бота
-bot.start();
-console.log("Мур-бот успішно запущений! 🚀");
+  bot.on("message", async (ctx, next) => {
+    if (
+      ctx.msg.sender_chat?.type === "channel" &&
+      config.allowedResources.includes(ctx.msg.sender_chat.id)
+    ) {
+      await sendPostMarkup(ctx);
+      return;
+    }
+    await next();
+  });
+
+  // 6. Кліки
+  bot.on("callback_query:data", async (ctx) => {
+    const db = loadDb();
+    const key = ctx.callbackQuery.data;
+    db.clicks[key] = (db.clicks[key] || 0) + 1;
+    saveDb(db);
+    await ctx.answerCallbackQuery("Мур! ✅");
+  });
+
+  // 7. Мовний патруль
+  bot.on("message:text", async (ctx) => {
+    if (ctx.from?.is_bot || ctx.chat.id === config.adminChatId) return;
+    if (hasRussian(ctx.msg.text)) {
+      const userId = ctx.from?.id;
+      if (!userId) return;
+
+      const db = loadDb();
+      db.warnings[userId] = (db.warnings[userId] || 0) + 1;
+      saveDb(db);
+
+      if (db.warnings[userId] >= 3) {
+        const cleanChatId = ctx.chat.id.toString().replace("-100", "");
+        await logTo(
+          config.threads.logs,
+          `🚨 **ПОРУШЕННЯ МОВНИХ ПРАВИЛ**\n\n👤 **Користувач:** ${ctx.from.first_name}\n🆔 **ID:** <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
+        );
+      } else {
+        try {
+          await ctx.reply(
+            `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`,
+            { reply_parameters: { message_id: ctx.msg.message_id } },
+          );
+        } catch (e) {
+          await ctx.reply(
+            `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`,
+          );
+        }
+      }
+    }
+  });
+
+  // 8. ЗВІТИ (Кожні 24 години: Кліки + Хостинг)
+  setInterval(async () => {
+    const db = loadDb();
+    const now = new Date();
+    const lastReset = new Date(db.lastReset);
+
+    if (now.getTime() - lastReset.getTime() > 24 * 60 * 60 * 1000) {
+      // --- Звіт по кліках ---
+      let report = `📈 <b>ДОБОВИЙ ЗВІТ ПО КЛІКАХ [${config.name}]</b>\n\n`;
+      if (Object.keys(db.clicks).length === 0)
+        report += "Сьогодні ніхто нікуди не тицяв 😿\n";
+      else {
+        for (const [btn, count] of Object.entries(db.clicks)) {
+          report += `🔹 ${btn}: ${count} разів\n`;
+        }
+      }
+      await logTo(config.threads.clicks, report);
+
+      // --- Щоденний звіт про хостинг ---
+      const sys = getSystemInfo();
+      await logTo(
+        config.threads.hosting,
+        `🖥 <b>Щоденний звіт хостингу [${config.name}]</b>\n\n<b>RAM:</b> ${sys.ram}\n<b>SSD:</b> ${sys.ssd}`,
+      );
+
+      // Скидання
+      db.clicks = {};
+      db.lastReset = now.toISOString();
+      saveDb(db);
+    }
+  }, 60000); // Перевіряємо час кожну хвилину
+
+  bot.catch((err) => {
+    const e = err.error;
+    if (e instanceof GrammyError) {
+      console.error(`[${config.name}] Помилка Telegram:`, e.description);
+    } else {
+      console.error(`[${config.name}] Невідома помилка:`, e);
+    }
+  });
+
+  // 9. СТАРТ
+  bot.start({
+    onStart: async (info) => {
+      console.log(`${config.name} успішно запущений! 🚀`);
+      const sys = getSystemInfo();
+      const db = loadDb();
+      const dbCount =
+        Object.keys(db.clicks).length + Object.keys(db.warnings).length;
+
+      await logTo(
+        config.threads.uptime,
+        `🟢 <b>Логи запуску (Uptime)</b>\n\n🚀 Бот <b>${config.name}</b> (@${info.username}) успішно піднявся!`,
+      );
+      await logTo(
+        config.threads.hosting,
+        `🖥 <b>Хостинг: Навантаження при старті [${config.name}]</b>\n\n<b>RAM:</b> ${sys.ram}\n<b>SSD:</b> ${sys.ssd}`,
+      );
+      await logTo(
+        config.threads.db,
+        `🗄 <b>Бази даних [${config.name}]:</b>\nКількість записів: ${dbCount}\nШвидкість відгуку API: OK ⚡️`,
+      );
+    },
+  });
+}
+
+// ==========================================
+// 4. ЗАПУСК БОТІВ
+// ==========================================
+
+startBot(MUR_CONFIG);
+// startBot(SHIGI_CONFIG); // Розкоментуй, коли заповниш дані Шігі
