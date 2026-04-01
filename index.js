@@ -42,8 +42,11 @@ var fs = require("fs");
 // 1. КОНФІГУРАЦІЯ
 // ==========================================
 var CONFIG = {
-    BOT_TOKEN: "8569832486:AAHu5bPAezoJLnt3z0emBl6FsYdc9sOCjHQ", // Обов'язково зміни токен після тестів!
-    ALLOWED_RESOURCES: [-1002789684698, -1003200253794, -1002808281023],
+    BOT_TOKEN: "8473334106:AAHVg3p_q7_M46bVLLFBr4QIAGmDhvcCD-U", // Обов'язково зміни токен після тестів!
+    ALLOWED_RESOURCES: [
+        -1002557455848, -1002563493364, -1002557455848, -1002563493364,
+        -1002808281023,
+    ],
     ADMIN_CHAT_ID: -1002808281023,
     LOG_THREAD_ID: 3861,
     DB_PATH: "./storage.json",
