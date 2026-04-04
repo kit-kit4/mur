@@ -190,7 +190,7 @@ export function startShigiBot() {
   // 1. Команда Ліам
   bot.hears(/^[Лл]іам[!?.]*$/i, async (ctx) => {
     const replyText =
-      "М? Вибач, ми не можемо бути разом) Можеш запитати Шігі, якщо є питання.";
+      "М? Вибач, ми не можемо бути разом) Можеш запитати Шігі, якщо є питання.\n\n Мій номер<tg-spoiler>Його бачать тільки геї..</tg-spoiler>";
 
     try {
       await ctx.reply(replyText, {
