@@ -4,5 +4,5 @@ import { startShigiBot } from "./shigi";
 console.log("🚀 Ініціалізація ботів...");
 
 // Запускаємо незалежні модулі
-//startMurBot();
+startMurBot();
 startShigiBot();
