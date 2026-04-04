@@ -86,60 +86,60 @@ const hasRussian = (text: string) => {
 const getDefaultKeyboard = () =>
   new InlineKeyboard()
     .add({
-      text: "❓Відповіді на часті запитання",
+      text: "❓ Відповіді на запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
       style: "primary",
     } as any)
     .row()
     .add({
-      text: "🗣 Як бронювати?",
-      url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
+      text: "🫂 Інформаційний чат",
+      url: "https://t.me/infoshigiureshop",
       style: "success",
     } as any)
     .row()
     .add({
-      text: "🚚 Про доставку",
-      url: "https://telegra.ph/Dostavka-07-29-4",
+      text: "🚚 Канал відстеження",
+      url: "https://t.me/TTNShigiureshop",
       style: "primary",
     } as any);
 
 const getLotKeyboard = () =>
   new InlineKeyboard()
     .add({
-      text: "❓Відповіді на часті запитання",
+      text: "❓ Відповіді на запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
       style: "primary",
     } as any)
     .row()
     .add({
-      text: "🗣 Як бронювати?",
-      url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
+      text: "🫂 Інформаційний чат",
+      url: "https://t.me/infoshigiureshop",
       style: "success",
     } as any)
     .row()
     .add({
-      text: "🚚 Про доставку",
-      url: "https://telegra.ph/Dostavka-07-29-4",
+      text: "🚚 Канал відстеження",
+      url: "https://t.me/TTNShigiureshop",
       style: "primary",
     } as any);
 
 const getAuctionKeyboard = () => {
   return new InlineKeyboard()
     .add({
-      text: "❓Відповіді на часті запитання",
+      text: "❓ Відповіді на запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
       style: "primary",
     } as any)
     .row()
     .add({
-      text: "🗣 Як бронювати?",
-      url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
+      text: "🫂 Інформаційний чат",
+      url: "https://t.me/infoshigiureshop",
       style: "success",
     } as any)
     .row()
     .add({
-      text: "🚚 Про доставку",
-      url: "https://telegra.ph/Dostavka-07-29-4",
+      text: "🚚 Канал відстеження",
+      url: "https://t.me/TTNShigiureshop",
       style: "primary",
     } as any);
 };
@@ -209,20 +209,20 @@ export function startShigiBot() {
 
     const startKeyboard = new InlineKeyboard()
       .add({
-        text: "❓ Відповіді на запитання",
+        text: "❓Відповіді на часті запитання",
         url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
         style: "primary",
       } as any)
       .row()
       .add({
-        text: "🫂 Інформаційний чат",
-        url: "https://t.me/infoshigiureshop",
+        text: "🗣 Як бронювати?",
+        url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
         style: "success",
       } as any)
       .row()
       .add({
-        text: "🚚 Канал відстеження",
-        url: "https://t.me/TTNShigiureshop",
+        text: "🚚 Про доставку",
+        url: "https://telegra.ph/Dostavka-07-29-4",
         style: "primary",
       } as any);
 
