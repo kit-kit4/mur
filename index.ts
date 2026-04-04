@@ -13,13 +13,13 @@ interface BotConfig {
   adminChatId: number;
   vipUsers: number[];
   threads: {
-    uptime: number; // Логи запуску/вимкнення та загальний статус
+    uptime: number; // Логи запуску та загальний статус
     logs: number; // Спроби додавання, помилки, патруль
   };
   dbPath: string;
   postText: string;
-  startupGifId: string; // ID гіфки (file_id) в Telegram
-  startupCaption: string; // Підпис до гіфки при старті
+  startupGifId: string;
+  startupCaption: string;
 }
 
 // 🐱 Налаштування МУР-бота
@@ -39,20 +39,17 @@ const MUR_CONFIG: BotConfig = {
   },
   dbPath: "./mur_storage.json",
   postText: `<i>НАГАДУВАННЯ</i> від Мурумі!\n\nХочеш тут фігурку? \n<b>Пиши Бронь</b> + скрін/назва у коментарях! \n\nОплата виключно на ФОП (це офіційний рахунок бізнесу).\n\n<blockquote>Писати про оплату може ТІЛЬКИ @murumich. \n\n<prem>5429605292331533576+💌</prem> Зв'язок/Адмін: @murumich</blockquote>\n<u>Спілкування лише українською.</u>`,
-
-  // НАЛАШТУВАННЯ ГІФКИ ДЛЯ МУР
-  startupGifId:
-    "CgACAgIAAxkBAAIs42nQVcv4sQQ87sZJ1CX9SoFEY-xhAAJiGAACLCgoSSJNFQlu3hRYOwQ",
-  startupCaption: "Час стерегти шопік Мурумки.",
+  startupGifId: "СЮДИ_ВСТАВ_ID_ГІФКИ_ДЛЯ_МУР", // TODO: Додати ID гіфки
+  startupCaption: "Мур-мур! Я знову на зв'язку! 🐾",
 };
 
 // 🦊 Налаштування ШІГІ-бота
 const SHIGI_CONFIG: BotConfig = {
-  name: "Пан Ліам",
+  name: "Шігі-БОТ",
   token: "8794247949:AAFsPQGYP6k9oMgElHqQ-VNLmKGFk3vwPBw",
   admins: [5147076742],
   allowedResources: [-1002808281023],
-  adminChatId: -1002808281023, // Вказав той самий адмін чат для тестів (заміни якщо треба)
+  adminChatId: -1002808281023, // Змінив з 0 на ID чату, щоб бот міг туди писати
   vipUsers: [5147076742, 992804916, 380752717],
   threads: {
     uptime: 530,
@@ -60,8 +57,6 @@ const SHIGI_CONFIG: BotConfig = {
   },
   dbPath: "./shigi_storage.json",
   postText: `<i>НАГАДУВАННЯ</i> від Шігі!\n\nТут інший текст...`,
-
-  // НАЛАШТУВАННЯ ГІФКИ ДЛЯ ШІГІ
   startupGifId:
     "CgACAgQAAxkBAAIs5WnQVdHKrNYnO2KnHobIBmV5atXJAAJ_DAACjbVRUaKlAAFj0xhxzjsE",
   startupCaption: "Знову працювати, ех. От би вихідний!",
@@ -93,6 +88,7 @@ function startBot(config: BotConfig) {
         config.dbPath,
         JSON.stringify({
           warnings: {},
+          lastReset: new Date().toISOString(),
         }),
       );
     }
@@ -108,7 +104,6 @@ function startBot(config: BotConfig) {
 
   // Централізоване логування
   const logTo = async (threadId: number, message: string) => {
-    if (!config.adminChatId || config.adminChatId === 0) return;
     try {
       await bot.api.sendMessage(config.adminChatId, message, {
         message_thread_id: threadId,
@@ -305,26 +300,23 @@ function startBot(config: BotConfig) {
     onStart: async (info) => {
       console.log(`${config.name} успішно запущений! 🚀`);
 
-      const startMessage = `Встав <b>${config.name}</b> (@${info.username})\n\n<i>${config.startupCaption}</i>`;
-
-      if (config.adminChatId && config.adminChatId !== 0) {
-        try {
-          // Відправка GIF разом з текстом
-          await bot.api.sendAnimation(config.adminChatId, config.startupGifId, {
-            caption: startMessage,
-            message_thread_id: config.threads.uptime,
-            parse_mode: "HTML",
-          });
-        } catch (e: any) {
-          // Якщо ID гіфки невірний, відправляємо просто текст
-          console.error(
-            `[${config.name}] Помилка відправки GIF при старті (можливо невірний file_id)`,
-          );
-          await logTo(
-            config.threads.uptime,
-            `${startMessage}\n\n⚠️ <i>(Гіфку не завантажено: перевірте startupGifId)</i>`,
-          );
-        }
+      // Відправляємо гіфку з підписом при старті
+      try {
+        await bot.api.sendAnimation(config.adminChatId, config.startupGifId, {
+          caption: `<b>${config.name}</b> (@${info.username}) увійшов у чат!\n\n${config.startupCaption}`,
+          message_thread_id: config.threads.uptime,
+          parse_mode: "HTML",
+        });
+      } catch (e) {
+        console.error(
+          `[${config.name}] Не вдалося відправити гіфку при старті:`,
+          e,
+        );
+        // Фолбек: якщо гіфка не відправилась, шлемо просто текст
+        await logTo(
+          config.threads.uptime,
+          `Встав <b>${config.name}</b> (@${info.username})\n${config.startupCaption}`,
+        );
       }
     },
   });
