@@ -265,15 +265,15 @@ export function startShigiBot() {
     await next();
   });
 
-  // 5. Команда /postREP з підтримкою a/l
-  bot.command("postREP", async (ctx) => {
+  // 5. Команда /postrep з підтримкою a/l
+  bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !CONFIG.admins.includes(userId)) return;
 
     const args = ctx.match.split(" ");
     if (args.length < 2 || args.length > 3) {
       await ctx.reply(
-        "❌ Формат: <code>/postREP -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postREP -10012345 567 a</code>",
+        "❌ Формат: <code>/postrep -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postrep -10012345 567 a</code>",
         { parse_mode: "HTML" },
       );
       return;

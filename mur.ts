@@ -198,16 +198,15 @@ export function startMurBot() {
     });
   });
 
-  // 4. Команда /postREP з підтримкою a/l
-  bot.command("postREP", async (ctx) => {
+  // 5. Команда /postrep з підтримкою a/l
+  bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !CONFIG.admins.includes(userId)) return;
 
-    // Розбиваємо повідомлення на частини: /postREP -100xxx 1234 a
     const args = ctx.match.split(" ");
     if (args.length < 2 || args.length > 3) {
       await ctx.reply(
-        "❌ Формат: <code>/postREP -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postREP -10012345 567 a</code>",
+        "❌ Формат: <code>/postrep -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postrep -10012345 567 a</code>",
         { parse_mode: "HTML" },
       );
       return;
@@ -215,14 +214,13 @@ export function startMurBot() {
 
     const chatId = Number(args[0]);
     const messageId = Number(args[1]);
-    const type = args[2]?.toLowerCase(); // "a" або "l"
+    const type = args[2]?.toLowerCase();
 
     if (isNaN(chatId) || isNaN(messageId)) {
       await ctx.reply("❌ ID чату та ID повідомлення мають бути числами!");
       return;
     }
 
-    // Визначаємо текст та кнопки залежно від типу
     let replyText = CONFIG.texts.default;
     let keyboard = getDefaultKeyboard();
 
