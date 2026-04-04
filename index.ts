@@ -1,7 +1,5 @@
 import { Bot, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import * as fs from "fs";
-import * as os from "os";
-import { execSync } from "child_process";
 
 // ==========================================
 // 1. КОНФІГУРАЦІЯ
@@ -16,13 +14,12 @@ interface BotConfig {
   vipUsers: number[];
   threads: {
     uptime: number; // Логи запуску/вимкнення та загальний статус
-    hosting: number; // Навантаження RAM/SSD
-    db: number; // Стан бази даних (більше не спамить при старті)
     logs: number; // Спроби додавання, помилки, патруль
-    clicks: number; // Звіти по кнопках
   };
   dbPath: string;
   postText: string;
+  startupGifId: string; // ID гіфки (file_id) в Telegram
+  startupCaption: string; // Підпис до гіфки при старті
 }
 
 // 🐱 Налаштування МУР-бота
@@ -38,32 +35,36 @@ const MUR_CONFIG: BotConfig = {
   vipUsers: [5147076742, 992804916, 380752717],
   threads: {
     uptime: 530,
-    hosting: 3986,
-    db: 3986,
     logs: 3861,
-    clicks: 10,
   },
   dbPath: "./mur_storage.json",
   postText: `<i>НАГАДУВАННЯ</i> від Мурумі!\n\nХочеш тут фігурку? \n<b>Пиши Бронь</b> + скрін/назва у коментарях! \n\nОплата виключно на ФОП (це офіційний рахунок бізнесу).\n\n<blockquote>Писати про оплату може ТІЛЬКИ @murumich. \n\n<prem>5429605292331533576+💌</prem> Зв'язок/Адмін: @murumich</blockquote>\n<u>Спілкування лише українською.</u>`,
+
+  // НАЛАШТУВАННЯ ГІФКИ ДЛЯ МУР
+  startupGifId:
+    "CgACAgIAAxkBAAIs42nQVcv4sQQ87sZJ1CX9SoFEY-xhAAJiGAACLCgoSSJNFQlu3hRYOwQ",
+  startupCaption: "Час стерегти шопік Мурумки.",
 };
 
-// 🦊 Налаштування ШІГІ-бота (Заглушка)
+// 🦊 Налаштування ШІГІ-бота
 const SHIGI_CONFIG: BotConfig = {
-  name: "Шігі-БОТ",
+  name: "Пан Ліам",
   token: "8794247949:AAFsPQGYP6k9oMgElHqQ-VNLmKGFk3vwPBw",
   admins: [5147076742],
   allowedResources: [-1002808281023],
-  adminChatId: 0,
+  adminChatId: -1002808281023, // Вказав той самий адмін чат для тестів (заміни якщо треба)
   vipUsers: [5147076742, 992804916, 380752717],
   threads: {
     uptime: 530,
-    hosting: 3986,
-    db: 3986,
     logs: 3861,
-    clicks: 10,
   },
   dbPath: "./shigi_storage.json",
   postText: `<i>НАГАДУВАННЯ</i> від Шігі!\n\nТут інший текст...`,
+
+  // НАЛАШТУВАННЯ ГІФКИ ДЛЯ ШІГІ
+  startupGifId:
+    "CgACAgQAAxkBAAIs5WnQVdHKrNYnO2KnHobIBmV5atXJAAJ_DAACjbVRUaKlAAFj0xhxzjsE",
+  startupCaption: "Знову працювати, ех. От би вихідний!",
 };
 
 // ==========================================
@@ -78,28 +79,6 @@ const formatPremiumEmoji = (text: string) =>
 
 const hasRussian = (text: string) => /[ёъыэ]/i.test(text);
 
-const getSystemInfo = () => {
-  const totalRam = (os.totalmem() / 1024 ** 3).toFixed(2);
-  const freeRam = (os.freemem() / 1024 ** 3).toFixed(2);
-  const usedRam = (Number(totalRam) - Number(freeRam)).toFixed(2);
-  const ramPercent = ((Number(usedRam) / Number(totalRam)) * 100).toFixed(0);
-
-  let ssdInfo = "Локальний тест (Win)";
-  if (os.platform() !== "win32") {
-    try {
-      const df = execSync("df -h / | tail -1").toString().trim().split(/\s+/);
-      ssdInfo = `${df[2]} / ${df[3]} (Усього: ${df[1]})`;
-    } catch (e) {
-      ssdInfo = "Помилка читання SSD";
-    }
-  }
-
-  return {
-    ram: `${usedRam}GB / ${totalRam}GB (${ramPercent}%)`,
-    ssd: ssdInfo,
-  };
-};
-
 // ==========================================
 // 3. ФАБРИКА БОТІВ
 // ==========================================
@@ -113,9 +92,7 @@ function startBot(config: BotConfig) {
       fs.writeFileSync(
         config.dbPath,
         JSON.stringify({
-          clicks: {},
           warnings: {},
-          lastReset: new Date().toISOString(),
         }),
       );
     }
@@ -131,6 +108,7 @@ function startBot(config: BotConfig) {
 
   // Централізоване логування
   const logTo = async (threadId: number, message: string) => {
+    if (!config.adminChatId || config.adminChatId === 0) return;
     try {
       await bot.api.sendMessage(config.adminChatId, message, {
         message_thread_id: threadId,
@@ -164,54 +142,7 @@ function startBot(config: BotConfig) {
 
   initDb();
 
-  // 1. Команда /inf (Швидка перевірка статусу)
-  bot.command("inf", async (ctx) => {
-    const userId = ctx.from?.id;
-    if (!userId) return;
-
-    // Працює тільки для адмінів, або якщо це викликано в адмін-чаті
-    if (!config.admins.includes(userId) && ctx.chat.id !== config.adminChatId)
-      return;
-
-    const sys = getSystemInfo();
-    const db = loadDb();
-
-    // Формуємо дату початку відліку
-    const resetDate = new Date(db.lastReset).toLocaleString("uk-UA", {
-      timeZone: "Europe/Kiev",
-    });
-
-    // Рахуємо кліки
-    let clicksReport = "";
-    let totalClicks = 0;
-
-    if (Object.keys(db.clicks).length === 0) {
-      clicksReport = "<i>Сьогодні ще ніхто нікуди не тицяв</i> 😿\n";
-    } else {
-      for (const [btn, count] of Object.entries(db.clicks)) {
-        clicksReport += `▪️ <code>${btn}</code>: <b>${count}</b>\n`;
-        totalClicks += count as number;
-      }
-    }
-
-    const reportMsg =
-      `📊 <b>СИСТЕМНИЙ СТАТУС [${config.name}]</b>\n` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `🖥 <b>Хостинг:</b>\n` +
-      `🧠 <b>RAM:</b> <code>${sys.ram}</code>\n` +
-      `💾 <b>SSD:</b> <code>${sys.ssd}</code>\n\n` +
-      `👆 <b>Кліки (з ${resetDate}):</b>\n` +
-      `${clicksReport}` +
-      `━━━━━━━━━━━━━━━━━━━━\n` +
-      `📈 <b>Всього кліків: ${totalClicks}</b>`;
-
-    await ctx.reply(reportMsg, {
-      parse_mode: "HTML",
-      reply_parameters: { message_id: ctx.msg.message_id },
-    });
-  });
-
-  // 2. Контроль додавань
+  // 1. Контроль додавань
   bot.on("message", async (ctx, next) => {
     if (
       !config.allowedResources.includes(ctx.chat.id) &&
@@ -229,7 +160,7 @@ function startBot(config: BotConfig) {
     await next();
   });
 
-  // 3. VIP сердечка
+  // 2. VIP сердечка
   bot.on("message", async (ctx, next) => {
     if (ctx.from && config.vipUsers.includes(ctx.from.id)) {
       try {
@@ -239,14 +170,14 @@ function startBot(config: BotConfig) {
     await next();
   });
 
-  // 4. Команда Мур
+  // 3. Команда Мур
   bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
     await ctx.reply("Мяу 🐾", {
       reply_parameters: { message_id: ctx.msg.message_id },
     });
   });
 
-  // 5. Команда /postREP
+  // 4. Команда /postREP
   bot.command("postREP", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !config.admins.includes(userId)) return;
@@ -280,7 +211,7 @@ function startBot(config: BotConfig) {
     }
   });
 
-  // 6. Обробка постів з альбомами (канал + чат)
+  // 5. Обробка постів з альбомами (канал + чат)
   const sendPostMarkup = async (ctx: any) => {
     const mgId = ctx.msg.media_group_id;
     if (mgId) {
@@ -315,16 +246,7 @@ function startBot(config: BotConfig) {
     await next();
   });
 
-  // 7. Кліки (для callback_data кнопок)
-  bot.on("callback_query:data", async (ctx) => {
-    const db = loadDb();
-    const key = ctx.callbackQuery.data;
-    db.clicks[key] = (db.clicks[key] || 0) + 1;
-    saveDb(db);
-    await ctx.answerCallbackQuery("Мур! ✅");
-  });
-
-  // 8. Мовний патруль
+  // 6. Мовний патруль
   bot.on("message:text", async (ctx) => {
     if (ctx.from?.is_bot || ctx.chat.id === config.adminChatId) return;
     if (hasRussian(ctx.msg.text)) {
@@ -357,43 +279,7 @@ function startBot(config: BotConfig) {
     }
   });
 
-  // 9. ЗВІТИ (Кожні 24 години: Кліки + Хостинг)
-  setInterval(async () => {
-    const db = loadDb();
-    const now = new Date();
-    const lastReset = new Date(db.lastReset);
-
-    if (now.getTime() - lastReset.getTime() > 24 * 60 * 60 * 1000) {
-      // --- Звіт по кліках ---
-      let report = `📈 <b>ДОБОВИЙ ЗВІТ ПО КЛІКАХ [${config.name}]</b>\n━━━━━━━━━━━━━━━━━━━━\n`;
-      let totalClicks = 0;
-
-      if (Object.keys(db.clicks).length === 0) {
-        report += "Сьогодні ніхто нікуди не тицяв 😿\n";
-      } else {
-        for (const [btn, count] of Object.entries(db.clicks)) {
-          report += `▪️ <code>${btn}</code>: <b>${count}</b>\n`;
-          totalClicks += count as number;
-        }
-      }
-      report += `━━━━━━━━━━━━━━━━━━━━\n<b>Всього: ${totalClicks}</b>`;
-      await logTo(config.threads.clicks, report);
-
-      // --- Щоденний звіт про хостинг ---
-      const sys = getSystemInfo();
-      await logTo(
-        config.threads.hosting,
-        `🖥 <b>ЩОДЕННИЙ ЗВІТ ХОСТИНГУ [${config.name}]</b>\n\n🧠 <b>RAM:</b> <code>${sys.ram}</code>\n💾 <b>SSD:</b> <code>${sys.ssd}</code>`,
-      );
-
-      // Скидання
-      db.clicks = {};
-      db.lastReset = now.toISOString();
-      saveDb(db);
-    }
-  }, 60000); // Перевіряємо час кожну хвилину
-
-  // 10. Обробка помилок (Тепер логується в адмін-чат)
+  // 7. Обробка помилок
   bot.catch(async (err) => {
     const e = err.error;
     let errorMsg = "Невідома помилка";
@@ -408,28 +294,38 @@ function startBot(config: BotConfig) {
 
     console.error(`[${config.name}] Помилка:`, errorMsg);
 
-    // Відправляємо помилку в гілку логів
     await logTo(
       config.threads.logs,
       `❌ <b>АВАРІЯ / ПОМИЛКА [${config.name}]</b>\n\n<pre>${errorMsg}</pre>`,
     );
   });
 
-  // 11. СТАРТ
+  // 8. СТАРТ
   bot.start({
     onStart: async (info) => {
       console.log(`${config.name} успішно запущений! 🚀`);
-      const sys = getSystemInfo();
 
-      // Одне красиве повідомлення замість спаму (прибрано спам гілки DB)
-      await logTo(
-        config.threads.uptime,
-        `🚀 Бот <b>${config.name}</b> (@${info.username}) успішно піднявся!\n` +
-          `━━━━━━━━━━━━━━━━━━━━\n` +
-          `🖥 <b>Система при старті:</b>\n` +
-          `🧠 <b>RAM:</b> <code>${sys.ram}</code>\n` +
-          `💾 <b>SSD:</b> <code>${sys.ssd}</code>`,
-      );
+      const startMessage = `Встав <b>${config.name}</b> (@${info.username})\n\n<i>${config.startupCaption}</i>`;
+
+      if (config.adminChatId && config.adminChatId !== 0) {
+        try {
+          // Відправка GIF разом з текстом
+          await bot.api.sendAnimation(config.adminChatId, config.startupGifId, {
+            caption: startMessage,
+            message_thread_id: config.threads.uptime,
+            parse_mode: "HTML",
+          });
+        } catch (e: any) {
+          // Якщо ID гіфки невірний, відправляємо просто текст
+          console.error(
+            `[${config.name}] Помилка відправки GIF при старті (можливо невірний file_id)`,
+          );
+          await logTo(
+            config.threads.uptime,
+            `${startMessage}\n\n⚠️ <i>(Гіфку не завантажено: перевірте startupGifId)</i>`,
+          );
+        }
+      }
     },
   });
 }
