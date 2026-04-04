@@ -41,10 +41,7 @@ const formatPremiumEmoji = (text: string) =>
   );
 
 const hasRussian = (text: string) => {
-  // 1. Перевірка на унікальні російські літери
   if (/[ёъыэ]/i.test(text)) return true;
-
-  // 2. Список частих російських слів (маркерів)
   const russianMarkers = [
     "что",
     "как",
@@ -57,41 +54,31 @@ const hasRussian = (text: string) => {
     "было",
     "есть",
     "будет",
-    "меня",
     "него",
-    "нее",
     "ними",
-    "хочу",
-    "могу",
     "сделал",
     "сказал",
     "привет",
     "спасибо",
     "пожалуйста",
     "случилось",
-    "нельзя",
     "тоже",
     "если",
     "админ",
     "купил",
     "цена",
     "сколько",
-    "нету",
     "нетути",
     "вообще",
     "совсем",
     "даже",
     "вместе",
-    "через",
     "после",
     "вчера",
     "сегодня",
     "завтра",
-    "прямо",
     "быстро",
   ];
-
-  // Перевіряємо, чи містить текст хоча б одне слово зі списку (цілим словом)
   const words = text.toLowerCase().split(/\s+/);
   return words.some((word) =>
     russianMarkers.includes(word.replace(/[?.!,]/g, "")),
@@ -170,7 +157,7 @@ export function startMurBot() {
   bot.command("start", async (ctx) => {
     if (ctx.chat.type === "private") {
       await ctx.reply(
-        "Я ботик! Якщо є питання - @murumich\n/n Якщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi",
+        "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi",
       );
     }
   });
@@ -211,12 +198,64 @@ export function startMurBot() {
     });
   });
 
-  // 4. Обробка постів (Канал + Чат) з перевіркою на [l] і [a]
+  // 4. Команда /postREP з підтримкою a/l
+  bot.command("postREP", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !CONFIG.admins.includes(userId)) return;
+
+    // Розбиваємо повідомлення на частини: /postREP -100xxx 1234 a
+    const args = ctx.match.split(" ");
+    if (args.length < 2 || args.length > 3) {
+      await ctx.reply(
+        "❌ Формат: <code>/postREP -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postREP -10012345 567 a</code>",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const chatId = Number(args[0]);
+    const messageId = Number(args[1]);
+    const type = args[2]?.toLowerCase(); // "a" або "l"
+
+    if (isNaN(chatId) || isNaN(messageId)) {
+      await ctx.reply("❌ ID чату та ID повідомлення мають бути числами!");
+      return;
+    }
+
+    // Визначаємо текст та кнопки залежно від типу
+    let replyText = CONFIG.texts.default;
+    let keyboard = getDefaultKeyboard();
+
+    if (type === "l" || type === "л") {
+      replyText = CONFIG.texts.lot;
+      keyboard = getLotKeyboard();
+    } else if (type === "a" || type === "а") {
+      replyText = CONFIG.texts.auction;
+      keyboard = getAuctionKeyboard();
+    }
+
+    try {
+      await ctx.api.sendMessage(chatId, formatPremiumEmoji(replyText), {
+        reply_parameters: { message_id: messageId },
+        reply_markup: keyboard,
+        parse_mode: "HTML",
+      });
+      await ctx.reply(`✅ Повідомлення успішно відправлено!`);
+    } catch (e: any) {
+      await ctx.reply(
+        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`,
+      );
+    }
+  });
+
+  // 5. Обробка постів (Канал + Чат) з перевіркою на [l] і [a] та АЛЬБОМИ
   const sendPostMarkup = async (ctx: any) => {
     const mgId = ctx.msg.media_group_id;
     if (mgId) {
+      // Якщо це альбом, ми реагуємо лише на перше повідомлення з цього альбому
       if (processedMediaGroups.has(mgId)) return;
       processedMediaGroups.add(mgId);
+      // Очищаємо кеш альбомів через хвилину
       setTimeout(() => processedMediaGroups.delete(mgId), 60000);
     }
 
@@ -259,7 +298,7 @@ export function startMurBot() {
     await next();
   });
 
-  // 5. Мовний патруль
+  // 6. Мовний патруль
   bot.on("message:text", async (ctx) => {
     if (
       ctx.from?.is_bot ||
@@ -268,7 +307,6 @@ export function startMurBot() {
     )
       return;
 
-    // Використовуємо нову функцію hasRussian (переконайся, що вона оголошена вище в коді)
     if (hasRussian(ctx.msg.text)) {
       const userId = ctx.from?.id;
       if (!userId) return;
@@ -284,8 +322,7 @@ export function startMurBot() {
           `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
         );
       } else {
-        // Твій текст, який ти просив залишити
-        const warnText = `Ай-ай-ай, ${ctx.from.first_name}, в цьому чаті не можна спілкуватись російською. Усне попередження! (${db.warnings[userId]}/3)`;
+        const warnText = `Ой-ой, помітив російську в чаті 🥺\n Будь ласка, спілкуємось тільки українською, дякую! \n\n(Усне для ${ctx.from.first_name} (${db.warnings[userId]}/3) )`;
 
         try {
           await ctx.reply(warnText, {
@@ -298,7 +335,7 @@ export function startMurBot() {
     }
   });
 
-  // 6. Обробка помилок та Старт
+  // 7. Обробка помилок та Старт
   bot.catch(async (err) => {
     const e = err.error;
     let errorMsg =

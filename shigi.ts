@@ -39,10 +39,7 @@ const formatPremiumEmoji = (text: string) =>
   );
 
 const hasRussian = (text: string) => {
-  // 1. Перевірка на унікальні російські літери
   if (/[ёъыэ]/i.test(text)) return true;
-
-  // 2. Список частих російських слів (маркерів)
   const russianMarkers = [
     "что",
     "как",
@@ -55,41 +52,31 @@ const hasRussian = (text: string) => {
     "было",
     "есть",
     "будет",
-    "меня",
     "него",
-    "нее",
     "ними",
-    "хочу",
-    "могу",
     "сделал",
     "сказал",
     "привет",
     "спасибо",
     "пожалуйста",
     "случилось",
-    "нельзя",
     "тоже",
     "если",
     "админ",
     "купил",
     "цена",
     "сколько",
-    "нету",
     "нетути",
     "вообще",
     "совсем",
     "даже",
     "вместе",
-    "через",
     "после",
     "вчера",
     "сегодня",
     "завтра",
-    "прямо",
     "быстро",
   ];
-
-  // Перевіряємо, чи містить текст хоча б одне слово зі списку (цілим словом)
   const words = text.toLowerCase().split(/\s+/);
   return words.some((word) =>
     russianMarkers.includes(word.replace(/[?.!,]/g, "")),
@@ -98,21 +85,18 @@ const hasRussian = (text: string) => {
 
 const getDefaultKeyboard = () =>
   new InlineKeyboard()
-    // 1 кнопка — Синя (primary)
     .add({
       text: "❓Відповіді на часті запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
       style: "primary",
     } as any)
     .row()
-    // 2 кнопка — Зелена (success)
     .add({
       text: "🗣 Як бронювати?",
       url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
       style: "success",
     } as any)
     .row()
-    // 3 кнопка — Синя (primary)
     .add({
       text: "🚚 Про доставку",
       url: "https://telegra.ph/Dostavka-07-29-4",
@@ -121,21 +105,18 @@ const getDefaultKeyboard = () =>
 
 const getLotKeyboard = () =>
   new InlineKeyboard()
-    // 1 кнопка — Синя (primary)
     .add({
       text: "❓Відповіді на часті запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
       style: "primary",
     } as any)
     .row()
-    // 2 кнопка — Зелена (success)
     .add({
       text: "🗣 Як бронювати?",
       url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
       style: "success",
     } as any)
     .row()
-    // 3 кнопка — Синя (primary)
     .add({
       text: "🚚 Про доставку",
       url: "https://telegra.ph/Dostavka-07-29-4",
@@ -143,34 +124,25 @@ const getLotKeyboard = () =>
     } as any);
 
 const getAuctionKeyboard = () => {
-  return (
-    new InlineKeyboard()
-      // 1 кнопка — Синя (primary)
-      .add({
-        text: "❓Відповіді на часті запитання",
-        url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-        style: "primary",
-      } as any)
-      .row()
-      // 2 кнопка — Зелена (success)
-      .add({
-        text: "🗣 Як бронювати?",
-        url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
-        style: "success",
-      } as any)
-      .row()
-      // 3 кнопка — Синя (primary)
-      .add({
-        text: "🚚 Про доставку",
-        url: "https://telegra.ph/Dostavka-07-29-4",
-        style: "primary",
-      } as any)
-  );
+  return new InlineKeyboard()
+    .add({
+      text: "❓Відповіді на часті запитання",
+      url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
+      style: "primary",
+    } as any)
+    .row()
+    .add({
+      text: "🗣 Як бронювати?",
+      url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
+      style: "success",
+    } as any)
+    .row()
+    .add({
+      text: "🚚 Про доставку",
+      url: "https://telegra.ph/Dostavka-07-29-4",
+      style: "primary",
+    } as any);
 };
-
-//❓Відповіді на часті запитання (https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05)
-//🗣 Як бронювати? (https://telegra.ph/Pravila-bronyuvannya-03-21)
-//🚚 Про доставку (https://telegra.ph/Dostavka-07-29-4)
 
 // ==========================================
 // МОДУЛЬ БОТА
@@ -215,7 +187,7 @@ export function startShigiBot() {
 
   initDb();
 
-  // 3. Команда Ліам
+  // 1. Команда Ліам
   bot.hears(/^[Лл]іам[!?.]*$/i, async (ctx) => {
     const replyText =
       "М? Вибач, ми не можемо бути разом) Можеш запитати Шігі, якщо є питання.";
@@ -229,29 +201,25 @@ export function startShigiBot() {
     }
   });
 
-  // 0. Команда /start ТІЛЬКИ в приватних
+  // 2. Команда /start ТІЛЬКИ в приватних
   bot.command("start", async (ctx) => {
-    // Перевірка, щоб команда працювала тільки в особистих повідомленнях
     if (ctx.chat.type !== "private") return;
 
     const startText = `<prem>6316495320033266646+😃</prem> Привіт! Я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b> <prem>5292214030176394674+😃</prem>\n\nЯкщо у вас є питання, можливо, ми вже відповіли на них. Усі кнопки знизу клікабельні та ведуть на інформаційну сторінку.\n\n<prem>5289784088004172160+😃</prem> <u>Також нагадую, що в нас є чат спілкування:</u>\n\n<a href="https://t.me/infoshigiureshop">ТИЦЬ, аби доєднатись</a>\n\nЯкщо у вас залишились питання — зверніться до адміна @froggw, вона з радістю допоможе <prem>5289617713856022447+😃</prem>`;
 
     const startKeyboard = new InlineKeyboard()
-      // 1 кнопка — Синя (primary)
       .add({
         text: "❓ Відповіді на запитання",
         url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
         style: "primary",
       } as any)
       .row()
-      // 2 кнопка — Зелена (success)
       .add({
         text: "🫂 Інформаційний чат",
         url: "https://t.me/infoshigiureshop",
         style: "success",
       } as any)
       .row()
-      // 3 кнопка — Синя (primary)
       .add({
         text: "🚚 Канал відстеження",
         url: "https://t.me/TTNShigiureshop",
@@ -259,7 +227,6 @@ export function startShigiBot() {
       } as any);
 
     try {
-      // ОСЬ ТУТ ГОЛОВНА ЗМІНА: додаємо formatPremiumEmoji(startText)
       await ctx.reply(formatPremiumEmoji(startText), {
         parse_mode: "HTML",
         reply_markup: startKeyboard,
@@ -268,7 +235,8 @@ export function startShigiBot() {
       console.error("Помилка у команді /start:", e);
     }
   });
-  // 1. Контроль додавань
+
+  // 3. Контроль додавань
   bot.on("message", async (ctx, next) => {
     if (
       !CONFIG.allowedResources.includes(ctx.chat.id) &&
@@ -287,17 +255,65 @@ export function startShigiBot() {
     await next();
   });
 
-  // 2. VIP сердечка
+  // 4. VIP сердечка
   bot.on("message", async (ctx, next) => {
     if (ctx.from && CONFIG.vipUsers.includes(ctx.from.id)) {
       try {
         await ctx.react("💘");
-      } catch (e) {} // Наприклад, Шігі ставить інший смайл
+      } catch (e) {}
     }
     await next();
   });
 
-  // 4. Обробка постів (Канал + Чат) з перевіркою на [l] і [a]
+  // 5. Команда /postREP з підтримкою a/l
+  bot.command("postREP", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !CONFIG.admins.includes(userId)) return;
+
+    const args = ctx.match.split(" ");
+    if (args.length < 2 || args.length > 3) {
+      await ctx.reply(
+        "❌ Формат: <code>/postREP -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postREP -10012345 567 a</code>",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const chatId = Number(args[0]);
+    const messageId = Number(args[1]);
+    const type = args[2]?.toLowerCase();
+
+    if (isNaN(chatId) || isNaN(messageId)) {
+      await ctx.reply("❌ ID чату та ID повідомлення мають бути числами!");
+      return;
+    }
+
+    let replyText = CONFIG.texts.default;
+    let keyboard = getDefaultKeyboard();
+
+    if (type === "l" || type === "л") {
+      replyText = CONFIG.texts.lot;
+      keyboard = getLotKeyboard();
+    } else if (type === "a" || type === "а") {
+      replyText = CONFIG.texts.auction;
+      keyboard = getAuctionKeyboard();
+    }
+
+    try {
+      await ctx.api.sendMessage(chatId, formatPremiumEmoji(replyText), {
+        reply_parameters: { message_id: messageId },
+        reply_markup: keyboard,
+        parse_mode: "HTML",
+      });
+      await ctx.reply(`✅ Повідомлення успішно відправлено!`);
+    } catch (e: any) {
+      await ctx.reply(
+        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`,
+      );
+    }
+  });
+
+  // 6. Обробка постів (Канал + Чат) з перевіркою на [l] і [a]
   const sendPostMarkup = async (ctx: any) => {
     const mgId = ctx.msg.media_group_id;
     if (mgId) {
@@ -345,7 +361,7 @@ export function startShigiBot() {
     await next();
   });
 
-  // 5. Мовний патруль
+  // 7. Мовний патруль
   bot.on("message:text", async (ctx) => {
     if (
       ctx.from?.is_bot ||
@@ -369,7 +385,6 @@ export function startShigiBot() {
           `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
         );
       } else {
-        // Твій новий текст з виправленою дужкою в кінці
         const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка, спілкуємось тільки українською, дякую!\n\n(Усне для ${ctx.from.first_name} [${db.warnings[userId]}/3])`;
 
         try {
@@ -383,7 +398,7 @@ export function startShigiBot() {
     }
   });
 
-  // 6. Обробка помилок та Старт
+  // 8. Обробка помилок та Старт
   bot.catch(async (err) => {
     const e = err.error;
     let errorMsg =
