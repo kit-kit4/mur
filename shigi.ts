@@ -190,14 +190,16 @@ export function startShigiBot() {
   // 1. Команда Ліам
   bot.hears(/^[Лл]іам[!?.]*$/i, async (ctx) => {
     const replyText =
-      "М? Вибач, ми не можемо бути разом) Можеш запитати Шігі, якщо є питання.\n\n Мій номер<tg-spoiler>Його бачать тільки геї..</tg-spoiler>";
+      "М? Вибач, ми не можемо бути разом) Можеш запитати Шігі, якщо є питання.\n\nМій номер: <tg-spoiler>Його бачать тільки геї..</tg-spoiler>";
 
     try {
       await ctx.reply(replyText, {
+        parse_mode: "HTML", // Додаємо підтримку HTML
         reply_parameters: { message_id: ctx.msg.message_id },
       });
     } catch (e) {
-      await ctx.reply(replyText);
+      // У фолбеку теж додаємо HTML, щоб тег не вивівся просто текстом
+      await ctx.reply(replyText, { parse_mode: "HTML" }).catch(() => {});
     }
   });
 
