@@ -385,7 +385,7 @@ export function startShigiBot() {
           `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
         );
       } else {
-        const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка, спілкуємось тільки українською, дякую!\n\n(Усне для ${ctx.from.first_name} [${db.warnings[userId]}/3])`;
+        const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка,${ctx.from.first_name} спілкуємось  тільки українською, дякую!`;
 
         try {
           await ctx.reply(warnText, {
