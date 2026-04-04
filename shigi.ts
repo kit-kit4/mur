@@ -7,7 +7,7 @@ import * as fs from "fs";
 const CONFIG = {
   name: "Шігі-БОТ",
   token: "8794247949:AAFsPQGYP6k9oMgElHqQ-VNLmKGFk3vwPBw",
-  admins: [5147076742],
+  admins: [5147076742, 380752717],
   allowedResources: [-1002808281023, -1002644865624, -1002598164499],
   adminChatId: -1002808281023,
   vipUsers: [5147076742, 992804916, 380752717],
