@@ -203,6 +203,61 @@ export function startShigiBot() {
     }
   });
 
+  // ==========================================
+  // КОМАНДА /tall ДЛЯ ТАЄМНОГО ПЕРЕПИСУВАННЯ
+  // ==========================================
+  bot.command("tall", async (ctx) => {
+    const userId = ctx.from?.id;
+    // Перевірка на адміна (беремо з твого CONFIG)
+    if (!userId || !CONFIG.admins.includes(userId)) return;
+
+    // Розбиваємо аргументи: /tall chat_id [reply_to_message_id]
+    const args = ctx.match.split(" ");
+    if (args.length < 1 || args[0] === "") {
+      await ctx.reply(
+        "❌ Формат: <code>/tall chat_id [reply_id]</code>\n\n1. Напиши текст/скинь фото\n2. Відповіж на нього командою: <code>/tall -100xxxxxx</code>",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    const targetChatId = args[0]; // Куди шлемо
+    const replyToId = args[1] ? Number(args[1]) : undefined; // На яке повідомлення відповісти (якщо вказано)
+
+    // Перевіряємо, чи ми відповіли на повідомлення, яке треба скопіювати
+    if (!ctx.msg.reply_to_message) {
+      await ctx.reply(
+        "❌ Потрібно зробити <b>REPLY</b> (відповідь) на повідомлення, яке ти хочеш відправити!",
+        { parse_mode: "HTML" },
+      );
+      return;
+    }
+
+    try {
+      // Копіюємо повідомлення (не пересилаємо, а саме створюємо копію без автора)
+      await ctx.api.copyMessage(
+        targetChatId,
+        ctx.chat.id,
+        ctx.msg.reply_to_message.message_id,
+        {
+          reply_parameters: replyToId ? { message_id: replyToId } : undefined,
+        },
+      );
+
+      // Видаляємо твою команду, щоб не палити "замовника" в твоєму адмін-чаті
+      try {
+        await ctx.deleteMessage();
+      } catch (e) {}
+
+      // Можна додати невеличку реакцію від бота, що все ок
+      await ctx.reply("✅ Відправлено таємно!", {
+        reply_parameters: { message_id: ctx.msg.reply_to_message.message_id },
+      });
+    } catch (e: any) {
+      await ctx.reply(`❌ Помилка: ${e.message}`);
+    }
+  });
+
   // 2. Команда /start ТІЛЬКИ в приватних
   bot.command("start", async (ctx) => {
     if (ctx.chat.type !== "private") return;
