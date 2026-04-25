@@ -172,7 +172,7 @@ export function startMurBot() {
 
   // 3. Команда Мур
   bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
-    await ctx.reply("Мяу 🐾", {
+    await ctx.reply("Хальо, няв няв.🐾", {
       reply_parameters: { message_id: ctx.msg.message_id },
     });
   });
