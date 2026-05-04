@@ -178,7 +178,7 @@ GitHub: https://github.com/kit-kit4/mur
     const startText = "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi";
 
     const keyboard = new InlineKeyboard()
-      .text("🤖 Як працює бот і що збирає?", "about_bot");
+      .text("Як працює бот і що збирає?", "about_bot");
 
     await ctx.editMessageText(startText, {
       reply_markup: keyboard,

@@ -210,7 +210,7 @@ export function startShigiBot() {
       style: "primary",
     } as any)
     .row()
-    .text("🤖 Як працює бот і що збирає?", "about_bot"); // Додана кнопка
+    .text("Як працює бот і що збирає?", "about_bot"); // Додана кнопка
 
   // ─── ОБРОБНИКИ КОМАНД ТА КНОПОК ───
   bot.command("start", async (ctx) => {
