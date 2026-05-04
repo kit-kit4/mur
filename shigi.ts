@@ -189,37 +189,82 @@ export function startShigiBot() {
     }
   });
 
+  const getStartText = () => `<prem>6316495320033266646+😃</prem> Привіт! Я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b> <prem>5292214030176394674+😃</prem>\n\nЯкщо у вас є питання, можливо, ми вже відповіли на них. Усі кнопки знизу клікабельні та ведуть на інформаційну сторінку.\n\n<prem>5289784088004172160+😃</prem> <u>Також нагадую, що в нас є чат спілкування:</u>\n\n<a href="https://t.me/infoshigiureshop">ТИЦЬ, аби доєднатись</a>\n\nЯкщо у вас залишились питання — зверніться до адміна @froggw, вона з радістю допоможе <prem>5289617713856022447+😃</prem>`;
+
+  const getStartKeyboard = () => new InlineKeyboard()
+    .add({
+      text: "❓Відповіді на часті запитання",
+      url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
+      style: "primary",
+    } as any)
+    .row()
+    .add({
+      text: "🗣 Як бронювати?",
+      url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
+      style: "success",
+    } as any)
+    .row()
+    .add({
+      text: "🚚 Про доставку",
+      url: "https://telegra.ph/Dostavka-07-29-4",
+      style: "primary",
+    } as any)
+    .row()
+    .text("🤖 Як працює бот і що збирає?", "about_bot"); // Додана кнопка
+
+  // ─── ОБРОБНИКИ КОМАНД ТА КНОПОК ───
   bot.command("start", async (ctx) => {
-    if (ctx.chat.type !== "private") return;
-
-    const startText = `<prem>6316495320033266646+😃</prem> Привіт! Я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b> <prem>5292214030176394674+😃</prem>\n\nЯкщо у вас є питання, можливо, ми вже відповіли на них. Усі кнопки знизу клікабельні та ведуть на інформаційну сторінку.\n\n<prem>5289784088004172160+😃</prem> <u>Також нагадую, що в нас є чат спілкування:</u>\n\n<a href="https://t.me/infoshigiureshop">ТИЦЬ, аби доєднатись</a>\n\nЯкщо у вас залишились питання — зверніться до адміна @froggw, вона з радістю допоможе <prem>5289617713856022447+😃</prem>`;
-
-    const startKeyboard = new InlineKeyboard()
-      .add({
-        text: "❓Відповіді на часті запитання",
-        url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-        style: "primary",
-      } as any)
-      .row()
-      .add({
-        text: "🗣 Як бронювати?",
-        url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
-        style: "success",
-      } as any)
-      .row()
-      .add({
-        text: "🚚 Про доставку",
-        url: "https://telegra.ph/Dostavka-07-29-4",
-        style: "primary",
-      } as any);
-
+    if (ctx.chat?.type !== "private") return;
     try {
-      await ctx.reply(formatPremiumEmoji(startText), {
+      await ctx.reply(formatPremiumEmoji(getStartText()), {
         parse_mode: "HTML",
-        reply_markup: startKeyboard,
+        reply_markup: getStartKeyboard(),
+        disable_web_page_preview: true,
       });
     } catch (e) {
       console.error("Помилка у команді /start:", e);
+    }
+  });
+
+  bot.callbackQuery("about_bot", async (ctx) => {
+    const aboutText = `Вітаю, я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b>. Моя мета — допомагати з лотами, аукціонами та нагадувати про правила чату.
+
+<b>Які дані я збираю?</b>
+Я збираю виключно ваш ID під час того, як ви порушуєте мовні правила чату. 
+
+Як саме? 
+Коли ви пишете російські слова, я даю вам попередження, записую ваш ідентифікаційний код Telegram (його бачать буквально всі) і присвоюю вам варн. При 3-му порушенні я надсилаю в приватні адміну просте нагадування про ваше порушення. Не більше. Покарання залишається виключно на розсуд адміна.
+
+Якщо ви не довіряєте мені, то можете перейти на мій GitHub, самостійно переглянути код та навіть надіслати його Штучному інтелекту на перевірку, якщо ви не знаєтеся на програмуванні.
+
+GitHub: https://github.com/kit-kit4/mur
+
+З любов'ю, Kitron 💙`;
+
+    const keyboard = new InlineKeyboard().text("⬅️ Назад", "back_to_start");
+
+    try {
+      await ctx.editMessageText(aboutText, {
+        parse_mode: "HTML",
+        reply_markup: keyboard,
+        disable_web_page_preview: true,
+      });
+      await ctx.answerCallbackQuery();
+    } catch (e) {
+      console.error("Помилка у callbackQuery about_bot:", e);
+    }
+  });
+
+  bot.callbackQuery("back_to_start", async (ctx) => {
+    try {
+      await ctx.editMessageText(formatPremiumEmoji(getStartText()), {
+        parse_mode: "HTML",
+        reply_markup: getStartKeyboard(),
+        disable_web_page_preview: true,
+      });
+      await ctx.answerCallbackQuery();
+    } catch (e) {
+      console.error("Помилка у callbackQuery back_to_start:", e);
     }
   });
 

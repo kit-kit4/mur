@@ -136,13 +136,57 @@ export function startMurBot() {
     }
   };
   initDb();
+
   bot.command("start", async (ctx) => {
-    if (ctx.chat.type === "private") {
+    if (ctx.chat?.type === "private") {
+      const keyboard = new InlineKeyboard()
+        .text("Як працює бот і що збирає?", "about_bot");
+
       await ctx.reply(
         "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi",
+        { reply_markup: keyboard }
       );
     }
   });
+
+  bot.callbackQuery("about_bot", async (ctx) => {
+    const aboutText = `Вітаю, я бот, створений для каналу "murumishop". Моя мета — надсилати під постами каналу додаткову інформацію для аукціонів та лотів, а також нагадувати про правила.
+
+<b>Які дані я збираю?</b>
+Я збираю виключно ваш ID під час того, як ви порушуєте мовні правила чату. 
+
+Як саме? 
+Коли ви пишете російські слова, я даю вам попередження, записую ваш ідентифікаційний код Telegram (його бачать буквально всі) і присвоюю вам варн. При 3-му порушенні я надсилаю в приватні адміну просте нагадування про ваше порушення. Не більше. Покарання залишається виключно на розсуд адміна.
+
+Якщо ви не довіряєте мені, то можете перейти на мій GitHub, самостійно переглянути код та навіть надіслати його Штучному інтелекту на перевірку, якщо ви не знаєтеся на програмуванні.
+
+GitHub: https://github.com/kit-kit4/mur
+
+З любов'ю, Kitron 💙`;
+
+    const keyboard = new InlineKeyboard()
+      .text("⬅️ Назад", "back_to_start");
+
+    await ctx.editMessageText(aboutText, {
+      parse_mode: "HTML",
+      reply_markup: keyboard,
+    });
+    await ctx.answerCallbackQuery(); 
+  });
+
+  bot.callbackQuery("back_to_start", async (ctx) => {
+    const startText = "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi";
+
+    const keyboard = new InlineKeyboard()
+      .text("🤖 Як працює бот і що збирає?", "about_bot");
+
+    await ctx.editMessageText(startText, {
+      reply_markup: keyboard,
+    });
+    
+    await ctx.answerCallbackQuery();
+  });
+
   bot.on("message", async (ctx, next) => {
     if (
       !CONFIG.allowedResources.includes(ctx.chat.id) &&
