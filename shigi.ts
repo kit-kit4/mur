@@ -239,7 +239,7 @@ export function startShigiBot() {
 
 GitHub: https://github.com/kit-kit4/mur
 
-З любов'ю, Kitron 💙`;
+З любов'ю, Ліам 💙`;
 
     const keyboard = new InlineKeyboard().text("⬅️ Назад", "back_to_start");
 
