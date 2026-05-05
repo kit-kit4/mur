@@ -432,7 +432,7 @@ bot.on("message", async (ctx, next) => {
           `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
         );
       } else {
-        const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка,${ctx.from.first_name} спілкуємось  тільки українською, дякую!\n\nПрошу видалити/відредагувати повідомлення.❤️ :3с`;
+        const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка,${ctx.from.first_name} спілкуємось  тільки українською, дякую!\n\nПрошу видалити/відредагувати повідомлення.❤️`;
 
         try {
           await ctx.reply(warnText, {
