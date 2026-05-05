@@ -285,14 +285,23 @@ GitHub: https://github.com/kit-kit4/mur
     await next();
   });
 
-  bot.on("message", async (ctx, next) => {
-    if (ctx.from && CONFIG.vipUsers.includes(ctx.from.id)) {
-      try {
-        await ctx.react("💘");
-      } catch (e) {}
+bot.on("message", async (ctx, next) => {
+ 
+  const userId = ctx.from?.id;
+  const senderChatId = ctx.message?.sender_chat?.id;
+
+  if (
+    (userId && CONFIG.vipUsers.includes(userId)) ||
+    (senderChatId && CONFIG.vipUsers.includes(senderChatId))
+  ) {
+    try {
+      await ctx.react("💘");
+    } catch (e) {
     }
-    await next();
-  });
+  }
+  
+  await next();
+});
 
   bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
