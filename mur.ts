@@ -37,38 +37,10 @@ const formatPremiumEmoji = (text: string) =>
 const hasRussian = (text: string) => {
   if (/[ёъыэ]/i.test(text)) return true;
   const russianMarkers = [
-    "что",
-    "как",
-    "почему",
-    "зачем",
-    "когда",
-    "только",
-    "очень",
-    "сейчас",
-    "было",
-    "есть",
-    "будет",
-    "него",
-    "сделал",
-    "сказал",
-    "привет",
-    "спасибо",
-    "пожалуйста",
-    "случилось",
-    "если",
-    "админ",
-    "купил",
-    "цена",
-    "сколько",
-    "нетути",
-    "вообще",
-    "совсем",
-    "вместе",
-    "после",
-    "вчера",
-    "сегодня",
-
-    "быстро",
+    "что", "как", "почему", "зачем", "когда", "только", "очень", "сейчас", "было",
+    "есть", "будет", "него", "сделал", "сказал", "привет", "спасибо", "пожалуйста",
+    "случилось", "если", "админ", "купил", "цена", "сколько", "нетути", "вообще",
+    "совсем", "вместе", "после", "вчера", "сегодня", "быстро",
   ];
   const words = text.toLowerCase().split(/\s+/);
   return words.some((word) =>
@@ -78,26 +50,20 @@ const hasRussian = (text: string) => {
 
 const getDefaultKeyboard = () =>
   new InlineKeyboard()
-    .url("Відгуки 📝", "https://t.me/infomurumi/7")
-    .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
+    .url("Відгуки 📝", "https://felixcard.online/click?bot=mur&target=reviews")
+    .url("Скільки чекати? ⏳", "https://felixcard.online/click?bot=mur&target=wait")
     .row()
-    .url("Як це працює? 🗺", "https://t.me/murumishop/106")
+    .url("Як це працює? 🗺", "https://felixcard.online/click?bot=mur&target=how")
     .row()
-    .url("Наш Чатик", "https://t.me/infomurumi/13");
+    .url("Наш Чатик", "https://felixcard.online/click?bot=mur&target=chat");
 
-const getLotKeyboard = () =>
-  new InlineKeyboard()
-    .url("Відгуки 📝", "https://t.me/infomurumi/7")
-    .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
-    .row()
-    .url("Як це працює? 🗺", "https://t.me/murumishop/106")
-    .row()
-    .url("Наш Чатик", "https://t.me/infomurumi/13");
+const getLotKeyboard = () => getDefaultKeyboard();
 
 const getAuctionKeyboard = () =>
   new InlineKeyboard()
-    .url("Відгуки 📝", "https://t.me/infomurumi/7")
-    .url("Наш Чатик", "https://t.me/infomurumi/13");
+    .url("Відгуки 📝", "https://felixcard.online/click?bot=mur&target=reviews")
+    .url("Наш Чатик", "https://felixcard.online/click?bot=mur&target=chat");
+
 export function startMurBot() {
   const bot = new Bot(CONFIG.token);
   const processedMediaGroups = new Set<string>();
@@ -135,6 +101,7 @@ export function startMurBot() {
       } else console.error(`[${CONFIG.name}] Помилка логування:`, e.message);
     }
   };
+  
   initDb();
 
   bot.command("start", async (ctx) => {
@@ -147,6 +114,23 @@ export function startMurBot() {
         { reply_markup: keyboard }
       );
     }
+  });
+
+  bot.command("stats", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !CONFIG.admins.includes(userId)) return;
+
+    // Лінивий імпорт статистики з головного файлу
+    const { getStats } = require("./index");
+    const stats = getStats("mur");
+
+    let text = "📊 <b>Статистика кліків (Мур-Бот):</b>\n\n";
+    text += `Відгуки: <b>${stats.reviews || 0}</b>\n`;
+    text += `Скільки чекати: <b>${stats.wait || 0}</b>\n`;
+    text += `Як працює: <b>${stats.how || 0}</b>\n`;
+    text += `Чатик: <b>${stats.chat || 0}</b>\n`;
+
+    await ctx.reply(text, { parse_mode: "HTML" });
   });
 
   bot.callbackQuery("about_bot", async (ctx) => {
@@ -214,7 +198,6 @@ GitHub: https://github.com/kit-kit4/mur
     await next();
   });
 
-  // 3. Команда Мур
   bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
     await ctx.reply("Хальо, няв няв.🐾", {
       reply_parameters: { message_id: ctx.msg.message_id },
@@ -314,6 +297,7 @@ GitHub: https://github.com/kit-kit4/mur
     }
     await next();
   });
+
   bot.on("message:text", async (ctx) => {
     if (
       ctx.from?.is_bot ||
@@ -349,6 +333,7 @@ GitHub: https://github.com/kit-kit4/mur
       }
     }
   });
+
   bot.catch(async (err) => {
     const e = err.error;
     let errorMsg =
@@ -363,6 +348,7 @@ GitHub: https://github.com/kit-kit4/mur
       `❌ <b>ПОМИЛКА [${CONFIG.name}]</b>\n\n<pre>${errorMsg}</pre>`,
     );
   });
+
   bot.start({
     onStart: async (info) => {
       console.log(`${CONFIG.name} Є`);
