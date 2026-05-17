@@ -10,7 +10,7 @@ const CONFIG = {
   vipUsers: [5147076742, 992804916, 380752717, 8296806565, -1002598164499],
   threads: {
     uptime: 530,
-    logs: 530,
+    logs: 530
   },
   dbPath: "./shigi_storage.json",
   startupGifId:
@@ -22,14 +22,14 @@ const CONFIG = {
     default: "",
     lot: `Привяу!<prem>5472314056280921593+😃</prem>\nЯ <b>Ліам</b> і я допоможу Вам отримати бажанку\n<b>Пиши «Бронь + скрін / назва» у коментарях.</b>\n\nНе встигли? Не засмучуйтесь!\nСтавайте в чергу — напишіть<b> «черга»</b> у відповідь на повідомлення того, хто вже забронював.\n\nМожливо, черга ще перейде до Вас<prem>5474261377273057572+⭐️</prem>\n\n<b>Мова спілкування у чаті — українська</b> 🇺🇦\n\n<prem>5289771765743000332+🩵</prem> Зв'язок з адміном: @froggw`,
 
-    auction: `Привяу!\nЯ <b>Ліам</b> і я допоможу не заплутатись в аукціоні.<prem>5472314056280921593+😃</prem>\n\n<i>Нагадую правила, щоб усім було комфортно:</i>\n<blockquote><prem>5289753804189766799+⭐️</prem> Без оффтопу під лотом;\n<prem>5289753804189766799+⭐️</prem> Нову ставку залишайте відповіддю на попередню;\n<prem>5289753804189766799+⭐️</prem> Видаляти ставки до завершення аукціону заборонено (я слідкую <prem>5474532716126950024+😏</prem>);</blockquote>\n\n<u><prem>5289613981529446001+❗️</prem> Зауважте, що ціна ставки не включає у себе вартість доставки з Японії!</u>\n\n<b>Мова спілкування у чаті — українська</b> 🇺🇦\n\n<prem>5289771765743000332+🩵</prem> Зв'язок з адміном: @froggw`,
-  },
+    auction: `Привяу!\nЯ <b>Ліам</b> і я допоможу не заплутатись в аукціоні.<prem>5472314056280921593+😃</prem>\n\n<i>Нагадую правила, щоб усім було комфортно:</i>\n<blockquote><prem>5289753804189766799+⭐️</prem> Без оффтопу під лотом;\n<prem>5289753804189766799+⭐️</prem> Нову ставку залишайте відповіддю на попередню;\n<prem>5289753804189766799+⭐️</prem> Видаляти ставки до завершення аукціону заборонено (я слідкую <prem>5474532716126950024+😏</prem>);</blockquote>\n\n<u><prem>5289613981529446001+❗️</prem> Зауважте, що ціна ставки не включає у себе вартість доставки з Японії!</u>\n\n<b>Мова спілкування у чаті — українська</b> 🇺🇦\n\n<prem>5289771765743000332+🩵</prem> Зв'язок з адміном: @froggw`
+  }
 };
 
 const formatPremiumEmoji = (text: string) =>
   text.replace(
     /<prem>(\d+)\+(.*?)<\/prem>/g,
-    (m, id, emo) => `<tg-emoji emoji-id="${id}">${emo}</tg-emoji>`,
+    (m, id, emo) => `<tg-emoji emoji-id="${id}">${emo}</tg-emoji>`
   );
 
 const hasRussian = (text: string) => {
@@ -37,6 +37,7 @@ const hasRussian = (text: string) => {
   const russianMarkers = [
     "что",
     "как",
+    "окак",
     "почему",
     "зачем",
     "когда",
@@ -66,11 +67,11 @@ const hasRussian = (text: string) => {
     "вчера",
     "сегодня",
 
-    "быстро",
+    "быстро"
   ];
   const words = text.toLowerCase().split(/\s+/);
   return words.some((word) =>
-    russianMarkers.includes(word.replace(/[?.!,]/g, "")),
+    russianMarkers.includes(word.replace(/[?.!,]/g, ""))
   );
 };
 
@@ -79,19 +80,19 @@ const getDefaultKeyboard = () =>
     .add({
       text: "❓ Відповіді на запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-      style: "primary",
+      style: "primary"
     } as any)
     .row()
     .add({
       text: "🫂 Інформаційний чат ",
       url: "https://t.me/infoshigiureshop",
-      style: "success",
+      style: "success"
     } as any)
     .row()
     .add({
       text: "🚚 Канал відстеження",
       url: "https://t.me/TTNShigiureshop",
-      style: "primary",
+      style: "primary"
     } as any);
 
 const getLotKeyboard = () =>
@@ -99,19 +100,19 @@ const getLotKeyboard = () =>
     .add({
       text: "❓ Відповіді на запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-      style: "primary",
+      style: "primary"
     } as any)
     .row()
     .add({
       text: "🫂 Інформаційний чат",
       url: "https://t.me/infoshigiureshop",
-      style: "success",
+      style: "success"
     } as any)
     .row()
     .add({
       text: "🚚 Канал відстеження",
       url: "https://t.me/TTNShigiureshop",
-      style: "primary",
+      style: "primary"
     } as any);
 
 const getAuctionKeyboard = () => {
@@ -119,19 +120,19 @@ const getAuctionKeyboard = () => {
     .add({
       text: "❓ Відповіді на запитання",
       url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-      style: "primary",
+      style: "primary"
     } as any)
     .row()
     .add({
       text: "🫂 Інформаційний чат",
       url: "https://t.me/infoshigiureshop",
-      style: "success",
+      style: "success"
     } as any)
     .row()
     .add({
       text: "🚚 Канал відстеження",
       url: "https://t.me/TTNShigiureshop",
-      style: "primary",
+      style: "primary"
     } as any);
 };
 export function startShigiBot() {
@@ -142,7 +143,7 @@ export function startShigiBot() {
     if (!fs.existsSync(CONFIG.dbPath)) {
       fs.writeFileSync(
         CONFIG.dbPath,
-        JSON.stringify({ warnings: {}, lastReset: new Date().toISOString() }),
+        JSON.stringify({ warnings: {}, lastReset: new Date().toISOString() })
       );
     }
   };
@@ -157,7 +158,7 @@ export function startShigiBot() {
     try {
       await bot.api.sendMessage(CONFIG.adminChatId, message, {
         message_thread_id: threadId,
-        parse_mode: "HTML",
+        parse_mode: "HTML"
       });
     } catch (e: any) {
       if (e.description?.includes("message thread not found")) {
@@ -165,7 +166,7 @@ export function startShigiBot() {
           .sendMessage(
             CONFIG.adminChatId,
             `⚠️ <i>(Гілку не знайдено)</i>\n\n${message}`,
-            { parse_mode: "HTML" },
+            { parse_mode: "HTML" }
           )
           .catch(() => {});
       } else console.error(`[${CONFIG.name}] Помилка логування:`, e.message);
@@ -181,48 +182,50 @@ export function startShigiBot() {
     try {
       await ctx.reply(replyText, {
         parse_mode: "HTML",
-        reply_parameters: { message_id: ctx.msg.message_id },
+        reply_parameters: { message_id: ctx.msg.message_id }
       });
     } catch (e) {
       await ctx.reply(replyText, { parse_mode: "HTML" }).catch(() => {});
     }
   });
 
- bot.hears(/^(раф|раф\s+раф)[!?.]*$/i, async (ctx) => {
+  bot.hears(/^(раф|раф\s+раф)[!?.]*$/i, async (ctx) => {
     const replyText = "Хороший хлопчик)";
 
     try {
       await ctx.reply(replyText, {
         parse_mode: "HTML",
-        reply_parameters: { message_id: ctx.msg.message_id },
+        reply_parameters: { message_id: ctx.msg.message_id }
       });
     } catch (e) {
       await ctx.reply(replyText, { parse_mode: "HTML" }).catch(() => {});
     }
   });
 
-  const getStartText = () => `<prem>6316495320033266646+😃</prem> Привіт! Я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b> <prem>5292214030176394674+😃</prem>\n\nЯкщо у вас є питання, можливо, ми вже відповіли на них. Усі кнопки знизу клікабельні та ведуть на інформаційну сторінку.\n\n<prem>5289784088004172160+😃</prem> <u>Також нагадую, що в нас є чат спілкування:</u>\n\n<a href="https://t.me/infoshigiureshop">ТИЦЬ, аби доєднатись</a>\n\nЯкщо у вас залишились питання — зверніться до адміна @froggw, вона з радістю допоможе <prem>5289617713856022447+😃</prem>`;
+  const getStartText = () =>
+    `<prem>6316495320033266646+😃</prem> Привіт! Я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b> <prem>5292214030176394674+😃</prem>\n\nЯкщо у вас є питання, можливо, ми вже відповіли на них. Усі кнопки знизу клікабельні та ведуть на інформаційну сторінку.\n\n<prem>5289784088004172160+😃</prem> <u>Також нагадую, що в нас є чат спілкування:</u>\n\n<a href="https://t.me/infoshigiureshop">ТИЦЬ, аби доєднатись</a>\n\nЯкщо у вас залишились питання — зверніться до адміна @froggw, вона з радістю допоможе <prem>5289617713856022447+😃</prem>`;
 
-  const getStartKeyboard = () => new InlineKeyboard()
-    .add({
-      text: "❓Відповіді на часті запитання",
-      url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-      style: "primary",
-    } as any)
-    .row()
-    .add({
-      text: "🗣 Як бронювати?",
-      url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
-      style: "success",
-    } as any)
-    .row()
-    .add({
-      text: "🚚 Про доставку",
-      url: "https://telegra.ph/Dostavka-07-29-4",
-      style: "primary",
-    } as any)
-    .row()
-    .text("Як працює бот і що збирає?", "about_bot"); // Додана кнопка
+  const getStartKeyboard = () =>
+    new InlineKeyboard()
+      .add({
+        text: "❓Відповіді на часті запитання",
+        url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
+        style: "primary"
+      } as any)
+      .row()
+      .add({
+        text: "🗣 Як бронювати?",
+        url: "https://telegra.ph/Pravila-bronyuvannya-03-21",
+        style: "success"
+      } as any)
+      .row()
+      .add({
+        text: "🚚 Про доставку",
+        url: "https://telegra.ph/Dostavka-07-29-4",
+        style: "primary"
+      } as any)
+      .row()
+      .text("Як працює бот і що збирає?", "about_bot"); // Додана кнопка
 
   // ─── ОБРОБНИКИ КОМАНД ТА КНОПОК ───
   bot.command("start", async (ctx) => {
@@ -231,7 +234,7 @@ export function startShigiBot() {
       await ctx.reply(formatPremiumEmoji(getStartText()), {
         parse_mode: "HTML",
         reply_markup: getStartKeyboard(),
-        disable_web_page_preview: true,
+        disable_web_page_preview: true
       });
     } catch (e) {
       console.error("Помилка у команді /start:", e);
@@ -259,7 +262,7 @@ GitHub: https://github.com/kit-kit4/mur
       await ctx.editMessageText(aboutText, {
         parse_mode: "HTML",
         reply_markup: keyboard,
-        disable_web_page_preview: true,
+        disable_web_page_preview: true
       });
       await ctx.answerCallbackQuery();
     } catch (e) {
@@ -272,7 +275,7 @@ GitHub: https://github.com/kit-kit4/mur
       await ctx.editMessageText(formatPremiumEmoji(getStartText()), {
         parse_mode: "HTML",
         reply_markup: getStartKeyboard(),
-        disable_web_page_preview: true,
+        disable_web_page_preview: true
       });
       await ctx.answerCallbackQuery();
     } catch (e) {
@@ -288,7 +291,7 @@ GitHub: https://github.com/kit-kit4/mur
     ) {
       await logTo(
         CONFIG.threads.logs,
-        `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${ctx.chat.id}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`,
+        `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${ctx.chat.id}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`
       );
       try {
         await ctx.leaveChat();
@@ -298,23 +301,21 @@ GitHub: https://github.com/kit-kit4/mur
     await next();
   });
 
-bot.on("message", async (ctx, next) => {
- 
-  const userId = ctx.from?.id;
-  const senderChatId = ctx.message?.sender_chat?.id;
+  bot.on("message", async (ctx, next) => {
+    const userId = ctx.from?.id;
+    const senderChatId = ctx.message?.sender_chat?.id;
 
-  if (
-    (userId && CONFIG.vipUsers.includes(userId)) ||
-    (senderChatId && CONFIG.vipUsers.includes(senderChatId))
-  ) {
-    try {
-      await ctx.react("💘");
-    } catch (e) {
+    if (
+      (userId && CONFIG.vipUsers.includes(userId)) ||
+      (senderChatId && CONFIG.vipUsers.includes(senderChatId))
+    ) {
+      try {
+        await ctx.react("💘");
+      } catch (e) {}
     }
-  }
-  
-  await next();
-});
+
+    await next();
+  });
 
   bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
@@ -324,7 +325,7 @@ bot.on("message", async (ctx, next) => {
     if (args.length < 2 || args.length > 3) {
       await ctx.reply(
         "❌ Формат: <code>/postrep -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postrep -10012345 567 a</code>",
-        { parse_mode: "HTML" },
+        { parse_mode: "HTML" }
       );
       return;
     }
@@ -353,12 +354,12 @@ bot.on("message", async (ctx, next) => {
       await ctx.api.sendMessage(chatId, formatPremiumEmoji(replyText), {
         reply_parameters: { message_id: messageId },
         reply_markup: keyboard,
-        parse_mode: "HTML",
+        parse_mode: "HTML"
       });
       await ctx.reply(`✅ Повідомлення успішно відправлено!`);
     } catch (e: any) {
       await ctx.reply(
-        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`,
+        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`
       );
     }
   });
@@ -388,7 +389,7 @@ bot.on("message", async (ctx, next) => {
           ? { message_id: ctx.msg.message_id }
           : undefined,
         reply_markup: keyboard,
-        parse_mode: "HTML",
+        parse_mode: "HTML"
       });
     } catch (e) {}
   };
@@ -429,14 +430,14 @@ bot.on("message", async (ctx, next) => {
         const cleanChatId = ctx.chat.id.toString().replace("-100", "");
         await logTo(
           CONFIG.threads.logs,
-          `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
+          `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`
         );
       } else {
         const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка,${ctx.from.first_name} спілкуємось  тільки українською, дякую!\n\nПрошу видалити/відредагувати повідомлення.❤️`;
 
         try {
           await ctx.reply(warnText, {
-            reply_parameters: { message_id: ctx.msg.message_id },
+            reply_parameters: { message_id: ctx.msg.message_id }
           });
         } catch (e) {
           await ctx.reply(warnText);
@@ -455,7 +456,7 @@ bot.on("message", async (ctx, next) => {
     console.error(`[${CONFIG.name}] Помилка:`, errorMsg);
     await logTo(
       CONFIG.threads.logs,
-      `❌ <b>ПОМИЛКА [${CONFIG.name}]</b>\n\n<pre>${errorMsg}</pre>`,
+      `❌ <b>ПОМИЛКА [${CONFIG.name}]</b>\n\n<pre>${errorMsg}</pre>`
     );
   });
 
@@ -466,14 +467,14 @@ bot.on("message", async (ctx, next) => {
         await bot.api.sendAnimation(CONFIG.adminChatId, CONFIG.startupGifId, {
           caption: `<b>${CONFIG.name}</b> (@${info.username}) увійшов у чат!\n\n${CONFIG.startupCaption}`,
           message_thread_id: CONFIG.threads.uptime,
-          parse_mode: "HTML",
+          parse_mode: "HTML"
         });
       } catch (e) {
         await logTo(
           CONFIG.threads.uptime,
-          `Встав <b>${CONFIG.name}</b> (@${info.username})\n${CONFIG.startupCaption}`,
+          `Встав <b>${CONFIG.name}</b> (@${info.username})\n${CONFIG.startupCaption}`
         );
       }
-    },
+    }
   });
 }

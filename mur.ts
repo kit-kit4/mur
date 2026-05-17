@@ -4,16 +4,16 @@ import * as fs from "fs";
 const CONFIG = {
   name: "Мур-БОТ",
   token: process.env.MUR_BOT || "",
-  admins: [5147076742],
+  admins: [5147076742, 8296806565],
   allowedResources: [
     -1002789684698, -1003200253794, -1002557455848, -1002563493364,
-    -1003872064368, -1002808281023, 5147076742, 8296806565, 987654321,
+    -1003872064368, -1002808281023, 5147076742, 8296806565, 987654321
   ],
   adminChatId: -1002808281023,
   vipUsers: [5147076742, 992804916, 380752717, 8296806565],
   threads: {
     uptime: 530,
-    logs: 3861,
+    logs: 3861
   },
   dbPath: "./mur_storage.json",
   startupGifId:
@@ -24,14 +24,14 @@ const CONFIG = {
   texts: {
     default: ``,
     lot: `<i>Нагадування</i> від Мурумі!\n\nХочеш тут фігурку? \n<b>Пиши Бронь</b> + скрін/назва у коментарях! \n\nОплата виключно на ФОП (це офіційний рахунок бізнесу).\n\n<blockquote><prem>5429605292331533576+💌</prem> Зв'язок/Адмін: @murumich</blockquote>\n\n<u>Спілкування лише українською.</u>`,
-    auction: `<i>Нагадування</i> від Мурумі!\n\nХочеш цю фігурку? <b>Став ставку!</b>\n<i>(і відповідайте реплаєм на попередню)</i>\n\n<blockquote><b>ПРАВИЛА аукціону:</b>\n ✿ Ставки не можна відміняти(Я все побачу)\n ✿ Флудити <b>заборонено</b></blockquote>\n\n<prem>5429605292331533576+💌</prem> <b>Зв'язок:</b> @murumich\n\n <u>Спілкування лише українською.</u>`,
-  },
+    auction: `<i>Нагадування</i> від Мурумі!\n\nХочеш цю фігурку? <b>Став ставку!</b>\n<i>(і відповідайте реплаєм на попередню)</i>\n\n<blockquote><b>ПРАВИЛА аукціону:</b>\n ✿ Ставки не можна відміняти(Я все побачу)\n ✿ Флудити <b>заборонено</b></blockquote>\n\n<prem>5429605292331533576+💌</prem> <b>Зв'язок:</b> @murumich\n\n <u>Спілкування лише українською.</u>`
+  }
 };
 
 const formatPremiumEmoji = (text: string) =>
   text.replace(
     /<prem>(\d+)\+(.*?)<\/prem>/g,
-    (m, id, emo) => `<tg-emoji emoji-id="${id}">${emo}</tg-emoji>`,
+    (m, id, emo) => `<tg-emoji emoji-id="${id}">${emo}</tg-emoji>`
   );
 
 const hasRussian = (text: string) => {
@@ -39,6 +39,7 @@ const hasRussian = (text: string) => {
   const russianMarkers = [
     "что",
     "как",
+    "окак",
     "почему",
     "зачем",
     "когда",
@@ -68,11 +69,11 @@ const hasRussian = (text: string) => {
     "вчера",
     "сегодня",
 
-    "быстро",
+    "быстро"
   ];
   const words = text.toLowerCase().split(/\s+/);
   return words.some((word) =>
-    russianMarkers.includes(word.replace(/[?.!,]/g, "")),
+    russianMarkers.includes(word.replace(/[?.!,]/g, ""))
   );
 };
 
@@ -106,7 +107,7 @@ export function startMurBot() {
     if (!fs.existsSync(CONFIG.dbPath)) {
       fs.writeFileSync(
         CONFIG.dbPath,
-        JSON.stringify({ warnings: {}, lastReset: new Date().toISOString() }),
+        JSON.stringify({ warnings: {}, lastReset: new Date().toISOString() })
       );
     }
   };
@@ -121,7 +122,7 @@ export function startMurBot() {
     try {
       await bot.api.sendMessage(CONFIG.adminChatId, message, {
         message_thread_id: threadId,
-        parse_mode: "HTML",
+        parse_mode: "HTML"
       });
     } catch (e: any) {
       if (e.description?.includes("message thread not found")) {
@@ -129,7 +130,7 @@ export function startMurBot() {
           .sendMessage(
             CONFIG.adminChatId,
             `⚠️ <i>(Гілку не знайдено)</i>\n\n${message}`,
-            { parse_mode: "HTML" },
+            { parse_mode: "HTML" }
           )
           .catch(() => {});
       } else console.error(`[${CONFIG.name}] Помилка логування:`, e.message);
@@ -139,8 +140,10 @@ export function startMurBot() {
 
   bot.command("start", async (ctx) => {
     if (ctx.chat?.type === "private") {
-      const keyboard = new InlineKeyboard()
-        .text("Як працює бот і що збирає?", "about_bot");
+      const keyboard = new InlineKeyboard().text(
+        "Як працює бот і що збирає?",
+        "about_bot"
+      );
 
       await ctx.reply(
         "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi",
@@ -164,30 +167,30 @@ GitHub: https://github.com/kit-kit4/mur
 
 З любов'ю, Помічниця 💙`;
 
-    const keyboard = new InlineKeyboard()
-      .text("⬅️ Назад", "back_to_start");
+    const keyboard = new InlineKeyboard().text("⬅️ Назад", "back_to_start");
 
     await ctx.editMessageText(aboutText, {
       parse_mode: "HTML",
-      reply_markup: keyboard,
+      reply_markup: keyboard
     });
-    await ctx.answerCallbackQuery(); 
-  });
-
-  bot.callbackQuery("back_to_start", async (ctx) => {
-    const startText = "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi";
-
-    const keyboard = new InlineKeyboard()
-      .text("Як працює бот і що збирає?", "about_bot");
-
-    await ctx.editMessageText(startText, {
-      reply_markup: keyboard,
-    });
-    
     await ctx.answerCallbackQuery();
   });
 
-  
+  bot.callbackQuery("back_to_start", async (ctx) => {
+    const startText =
+      "Я ботик! Якщо є питання - @murumich\n\nЯкщо ти хочеш отримати інформацію про фігурки, будь ласка, приєднуйся до нашого каналу та чатиків! 🐾\n\nКанал: https://t.me/murumishop\nЧат: https://t.me/infomurumi";
+
+    const keyboard = new InlineKeyboard().text(
+      "Як працює бот і що збирає?",
+      "about_bot"
+    );
+
+    await ctx.editMessageText(startText, {
+      reply_markup: keyboard
+    });
+
+    await ctx.answerCallbackQuery();
+  });
 
   bot.on("message", async (ctx, next) => {
     if (
@@ -197,7 +200,7 @@ GitHub: https://github.com/kit-kit4/mur
     ) {
       await logTo(
         CONFIG.threads.logs,
-        `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${ctx.chat.id}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`,
+        `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${ctx.chat.id}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`
       );
       try {
         await ctx.leaveChat();
@@ -219,7 +222,7 @@ GitHub: https://github.com/kit-kit4/mur
   // 3. Команда Мур
   bot.hears(/^[Мм]ур[!?.]*$/i, async (ctx) => {
     await ctx.reply("Хальо, няв няв.🐾", {
-      reply_parameters: { message_id: ctx.msg.message_id },
+      reply_parameters: { message_id: ctx.msg.message_id }
     });
   });
 
@@ -231,12 +234,10 @@ GitHub: https://github.com/kit-kit4/mur
     if (args.length < 2 || args.length > 3) {
       await ctx.reply(
         "❌ Формат: <code>/postrep -100xxxxxx message_id [a/l]</code>\nНаприклад: <code>/postrep -10012345 567 a</code>",
-        { parse_mode: "HTML" },
+        { parse_mode: "HTML" }
       );
       return;
     }
-
-    
 
     const chatId = Number(args[0]);
     const messageId = Number(args[1]);
@@ -262,12 +263,12 @@ GitHub: https://github.com/kit-kit4/mur
       await ctx.api.sendMessage(chatId, formatPremiumEmoji(replyText), {
         reply_parameters: { message_id: messageId },
         reply_markup: keyboard,
-        parse_mode: "HTML",
+        parse_mode: "HTML"
       });
       await ctx.reply(`✅ відправлено!`);
     } catch (e: any) {
       await ctx.reply(
-        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`,
+        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`
       );
     }
   });
@@ -298,7 +299,7 @@ GitHub: https://github.com/kit-kit4/mur
           ? { message_id: ctx.msg.message_id }
           : undefined,
         reply_markup: keyboard,
-        parse_mode: "HTML",
+        parse_mode: "HTML"
       });
     } catch (e) {}
   };
@@ -338,14 +339,14 @@ GitHub: https://github.com/kit-kit4/mur
         const cleanChatId = ctx.chat.id.toString().replace("-100", "");
         await logTo(
           CONFIG.threads.logs,
-          `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`,
+          `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`
         );
       } else {
         const warnText = `Ой-ой, помітив російську в чаті 🥺\n Будь ласка, спілкуємось тільки українською, дякую! \n\n(Усне для ${ctx.from.first_name} (${db.warnings[userId]}/3) )`;
 
         try {
           await ctx.reply(warnText, {
-            reply_parameters: { message_id: ctx.msg.message_id },
+            reply_parameters: { message_id: ctx.msg.message_id }
           });
         } catch (e) {
           await ctx.reply(warnText);
@@ -364,7 +365,7 @@ GitHub: https://github.com/kit-kit4/mur
     console.error(`[${CONFIG.name}] Помилка:`, errorMsg);
     await logTo(
       CONFIG.threads.logs,
-      `❌ <b>ПОМИЛКА [${CONFIG.name}]</b>\n\n<pre>${errorMsg}</pre>`,
+      `❌ <b>ПОМИЛКА [${CONFIG.name}]</b>\n\n<pre>${errorMsg}</pre>`
     );
   });
   bot.start({
@@ -374,14 +375,14 @@ GitHub: https://github.com/kit-kit4/mur
         await bot.api.sendAnimation(CONFIG.adminChatId, CONFIG.startupGifId, {
           caption: `<b>${CONFIG.name}</b> (@${info.username}) увійшов у чат!\n\n${CONFIG.startupCaption}`,
           message_thread_id: CONFIG.threads.uptime,
-          parse_mode: "HTML",
+          parse_mode: "HTML"
         });
       } catch (e) {
         await logTo(
           CONFIG.threads.uptime,
-          `Встав <b>${CONFIG.name}</b> (@${info.username})\n${CONFIG.startupCaption}`,
+          `Встав <b>${CONFIG.name}</b> (@${info.username})\n${CONFIG.startupCaption}`
         );
       }
-    },
+    }
   });
 }
