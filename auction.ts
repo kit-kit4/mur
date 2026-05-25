@@ -66,6 +66,20 @@ export class AuctionManager {
         }
     }
 
+    // Метод-"пінг" для перевірки існування повідомлення
+    private async isMessageAlive(chatId: number, msgId: number): Promise<boolean> {
+        try {
+            const ping = await this.bot.api.copyMessage(this.adminChatId, chatId, msgId, { disable_notification: true });
+            await this.bot.api.deleteMessage(this.adminChatId, ping.message_id).catch(() => {});
+            return true;
+        } catch (e: any) {
+            if (e.description?.includes("message to copy not found") || e.description?.includes("not found")) {
+                return false;
+            }
+            return true; // Якщо помилка прав доступу, вважаємо що живе
+        }
+    }
+
     public registerPost(messageId: number, chatId: number, text: string) {
         const startMatch = text.match(/початкова ставка\s*(?:-|:)\s*(\d+)/i);
         const stepMatch = text.match(/мінімальн(?:е підняття|ий крок)\s*(?:-|:)\s*(\d+)/i);
@@ -142,13 +156,51 @@ export class AuctionManager {
             return true;
         }
         
+        // --- ЛОГІКА ВІДНОВЛЕННЯ ЛАНЦЮГА ---
         if (replyId !== auction.lastBidMsgId) {
-            const cleanChatId = auction.chatId.toString().replace("-100", "");
-            const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
-            await this.sendTempWarning(ctx, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Остання ставка тут</a>`);
-            auction.invalidBids[msgId] = text; 
-            this.isDirty = true;
-            return true;
+            const isAlive = await this.isMessageAlive(auction.chatId, auction.lastBidMsgId);
+
+            if (isAlive) {
+                const cleanChatId = auction.chatId.toString().replace("-100", "");
+                const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
+                await this.sendTempWarning(ctx, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Остання ставка тут</a>`);
+                auction.invalidBids[msgId] = text; 
+                this.isDirty = true;
+                return true;
+            } else {
+                // Видаляємо зниклу ставку
+                delete auction.bids[auction.lastBidMsgId]; 
+
+                // Шукаємо нову найвищу
+                let maxBid = 0;
+                let newLastMsgId = auctionId; 
+
+                for (const [idStr, bidInfo] of Object.entries(auction.bids)) {
+                    if (bidInfo.amount > maxBid) {
+                        maxBid = bidInfo.amount;
+                        newLastMsgId = parseInt(idStr);
+                    }
+                }
+
+                auction.currentBid = maxBid;
+                auction.lastBidMsgId = newLastMsgId;
+
+                await this.bot.api.sendMessage(
+                    this.adminChatId, 
+                    `🚨 <b>Відкат аукціону!</b>\nКористувач видалив останню ставку. Ціну відкочено до <code>${maxBid || auction.startBid}</code>.`, 
+                    { parse_mode: "HTML" }
+                ).catch(() => {});
+
+                // Якщо юзер промахнувся навіть після відкату
+                if (replyId !== auction.lastBidMsgId) {
+                    const cleanChatId = auction.chatId.toString().replace("-100", "");
+                    const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
+                    await this.sendTempWarning(ctx, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Відновлена остання ставка тут</a>`);
+                    auction.invalidBids[msgId] = text; 
+                    this.isDirty = true;
+                    return true;
+                }
+            }
         }
 
         if (auction.currentBid === 0) {
@@ -239,24 +291,6 @@ export class AuctionManager {
                 
                 const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
                 await this.bot.api.sendMessage(this.adminChatId, this.texts.editLog(oldVal, newText, link), { parse_mode: "HTML" }).catch(() => {});
-                return;
-            }
-        }
-    }
-
-    public async handleDelete(msgId: number) {
-        for (const [auctionId, auction] of Object.entries(this.activeAuctions)) {
-            let deletedVal: string | number | null = null;
-
-            if (auction.bids[msgId]) {
-                deletedVal = auction.bids[msgId].amount;
-            } else if (auction.invalidBids?.[msgId]) {
-                deletedVal = `(Хибна ставка) ${auction.invalidBids[msgId]}`;
-            }
-
-            if (deletedVal !== null) {
-                const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
-                await this.bot.api.sendMessage(this.adminChatId, this.texts.deleteLog(deletedVal, link), { parse_mode: "HTML" }).catch(() => {});
                 return;
             }
         }
