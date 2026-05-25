@@ -3,7 +3,8 @@ import { Bot, Context } from 'grammy';
 
 export interface AuctionTexts {
     notReply: string;
-    notReplyToLast: string; 
+    notReplyToLast: string;
+    bidDeletedReply: string;
     tooSmall: (minRequired: number) => string;
     late: string;
     lateNoBids: string;
@@ -66,7 +67,6 @@ export class AuctionManager {
         }
     }
 
-    // Метод-"пінг" для перевірки існування повідомлення
     private async isMessageAlive(chatId: number, msgId: number): Promise<boolean> {
         try {
             const ping = await this.bot.api.copyMessage(this.adminChatId, chatId, msgId, { disable_notification: true });
@@ -76,7 +76,7 @@ export class AuctionManager {
             if (e.description?.includes("message to copy not found") || e.description?.includes("not found")) {
                 return false;
             }
-            return true; // Якщо помилка прав доступу, вважаємо що живе
+            return true; 
         }
     }
 
@@ -156,7 +156,6 @@ export class AuctionManager {
             return true;
         }
         
-        // --- ЛОГІКА ВІДНОВЛЕННЯ ЛАНЦЮГА ---
         if (replyId !== auction.lastBidMsgId) {
             const isAlive = await this.isMessageAlive(auction.chatId, auction.lastBidMsgId);
 
@@ -168,10 +167,9 @@ export class AuctionManager {
                 this.isDirty = true;
                 return true;
             } else {
-                // Видаляємо зниклу ставку
+                const deletedBidInfo = auction.bids[auction.lastBidMsgId];
                 delete auction.bids[auction.lastBidMsgId]; 
 
-                // Шукаємо нову найвищу
                 let maxBid = 0;
                 let newLastMsgId = auctionId; 
 
@@ -185,21 +183,21 @@ export class AuctionManager {
                 auction.currentBid = maxBid;
                 auction.lastBidMsgId = newLastMsgId;
 
+                const deletedAmount = deletedBidInfo ? deletedBidInfo.amount : "невідомо";
+                const deletedByUserId = deletedBidInfo ? deletedBidInfo.userId : "невідомо";
+
                 await this.bot.api.sendMessage(
                     this.adminChatId, 
-                    `🚨 <b>Відкат аукціону!</b>\nКористувач видалив останню ставку. Ціну відкочено до <code>${maxBid || auction.startBid}</code>.`, 
+                    `🚨 <b>Відкат аукціону!</b>\nСтавку на <code>${deletedAmount}</code> (від ID: <code>${deletedByUserId}</code>) було видалено.\nЦіну відкочено до <code>${maxBid || auction.startBid}</code>.`, 
                     { parse_mode: "HTML" }
                 ).catch(() => {});
 
-                // Якщо юзер промахнувся навіть після відкату
-                if (replyId !== auction.lastBidMsgId) {
-                    const cleanChatId = auction.chatId.toString().replace("-100", "");
-                    const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
-                    await this.sendTempWarning(ctx, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Відновлена остання ставка тут</a>`);
-                    auction.invalidBids[msgId] = text; 
-                    this.isDirty = true;
-                    return true;
-                }
+                const cleanChatId = auction.chatId.toString().replace("-100", "");
+                const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
+                await this.sendTempWarning(ctx, `${this.texts.bidDeletedReply}\n\n🔗 <a href="${lastBidLink}">Відновлена остання ставка тут</a>`);
+                auction.invalidBids[msgId] = text; 
+                this.isDirty = true;
+                return true;
             }
         }
 
@@ -291,6 +289,24 @@ export class AuctionManager {
                 
                 const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
                 await this.bot.api.sendMessage(this.adminChatId, this.texts.editLog(oldVal, newText, link), { parse_mode: "HTML" }).catch(() => {});
+                return;
+            }
+        }
+    }
+
+    public async handleDelete(msgId: number) {
+        for (const [auctionId, auction] of Object.entries(this.activeAuctions)) {
+            let deletedVal: string | number | null = null;
+
+            if (auction.bids[msgId]) {
+                deletedVal = auction.bids[msgId].amount;
+            } else if (auction.invalidBids?.[msgId]) {
+                deletedVal = `(Хибна ставка) ${auction.invalidBids[msgId]}`;
+            }
+
+            if (deletedVal !== null) {
+                const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
+                await this.bot.api.sendMessage(this.adminChatId, this.texts.deleteLog(deletedVal, link), { parse_mode: "HTML" }).catch(() => {});
                 return;
             }
         }
