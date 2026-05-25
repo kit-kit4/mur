@@ -183,11 +183,11 @@ export function startShigiBot() {
   bot.command("start", async (ctx) => {
     if (ctx.chat?.type !== "private") return;
     try {
-      await ctx.reply(formatPremiumEmoji(getStartText()), {
-        parse_mode: "HTML",
-        reply_markup: getStartKeyboard(),
-        disable_web_page_preview: true
-      });
+    await ctx.reply(formatPremiumEmoji(getStartText()), {
+  parse_mode: "HTML",
+  reply_markup: getStartKeyboard(),
+  disable_web_page_preview: true
+} as any);
     } catch (e) {
       console.error("Помилка у команді /start:", e);
     }
@@ -211,11 +211,11 @@ GitHub: https://github.com/kit-kit4/mur
     const keyboard = new InlineKeyboard().text("⬅️ Назад", "back_to_start");
 
     try {
-      await ctx.editMessageText(aboutText, {
-        parse_mode: "HTML",
-        reply_markup: keyboard,
-        disable_web_page_preview: true
-      });
+     await ctx.editMessageText(aboutText, {
+  parse_mode: "HTML",
+  reply_markup: keyboard,
+  disable_web_page_preview: true
+} as any);
       await ctx.answerCallbackQuery();
     } catch (e) {
       console.error("Помилка у callbackQuery about_bot:", e);
@@ -228,7 +228,7 @@ GitHub: https://github.com/kit-kit4/mur
         parse_mode: "HTML",
         reply_markup: getStartKeyboard(),
         disable_web_page_preview: true
-      });
+      } as any);
       await ctx.answerCallbackQuery();
     } catch (e) {
       console.error("Помилка у callbackQuery back_to_start:", e);
@@ -350,7 +350,8 @@ GitHub: https://github.com/kit-kit4/mur
           ? { message_id: ctx.msg.message_id }
           : undefined,
         reply_markup: keyboard,
-        parse_mode: "HTML"
+        parse_mode: "HTML",
+        disable_web_page_preview: true
       });
 
       // Додаємо в кеш 
