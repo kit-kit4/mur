@@ -1,5 +1,6 @@
 import { Bot, GrammyError, HttpError, InlineKeyboard } from "grammy";
 import * as fs from "fs";
+import { AuctionManager } from "./auction";
 
 const CONFIG = {
   name: "Шігі-БОТ",
@@ -17,7 +18,6 @@ const CONFIG = {
     "CgACAgIAAyEFAASnYve_AAISUmnRMIK9DtsiPSOprPbCXfPUFzWMAAJ_jAAC54TgSAMm3LTlpWQDOwQ",
   startupCaption: "Знову працювати, ех. От би вихідний!",
 
-  // Тексти для різних типів постів
   texts: {
     default: "",
     lot: `Привяу!<prem>5472314056280921593+😃</prem>\nЯ <b>Ліам</b> і я допоможу Вам отримати бажанку\n<b>Пиши «Бронь + скрін / назва» у коментарях.</b>\n\nНе встигли? Не засмучуйтесь!\nСтавайте в чергу — напишіть<b> «черга»</b> у відповідь на повідомлення того, хто вже забронював.\n\nМожливо, черга ще перейде до Вас<prem>5474261377273057572+⭐️</prem>\n\n<b>Мова спілкування у чаті — українська</b> 🇺🇦\n\n<prem>5289771765743000332+🩵</prem> Зв'язок з адміном: @froggw`,
@@ -35,39 +35,10 @@ const formatPremiumEmoji = (text: string) =>
 const hasRussian = (text: string) => {
   if (/[ёъыэ]/i.test(text)) return true;
   const russianMarkers = [
-    "что",
-    "как",
-    "окак",
-    "почему",
-    "зачем",
-    "когда",
-    "только",
-    "очень",
-    "сейчас",
-    "было",
-    "есть",
-    "будет",
-    "него",
-    "сделал",
-    "сказал",
-    "привет",
-    "мидория",
-    "пожалуйста",
-    "случилось",
-    "если",
-    "админ",
-    "купил",
-    "сколько",
-    "нетути",
-    "вообще",
-    "совсем",
-    "даже",
-    "вместе",
-    "после",
-    "вчера",
-    "сегодня",
-
-    "быстро"
+    "что", "как", "окак", "почему", "зачем", "когда", "только", "очень", "сейчас",
+    "было", "есть", "будет", "него", "сделал", "сказал", "привет", "мидория",
+    "пожалуйста", "случилось", "если", "админ", "купил", "сколько", "нетути",
+    "вообще", "совсем", "даже", "вместе", "после", "вчера", "сегодня", "быстро"
   ];
   const words = text.toLowerCase().split(/\s+/);
   return words.some((word) =>
@@ -95,46 +66,9 @@ const getDefaultKeyboard = () =>
       style: "primary"
     } as any);
 
-const getLotKeyboard = () =>
-  new InlineKeyboard()
-    .add({
-      text: "❓ Відповіді на запитання",
-      url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-      style: "primary"
-    } as any)
-    .row()
-    .add({
-      text: "🫂 Інформаційний чат",
-      url: "https://t.me/infoshigiureshop",
-      style: "success"
-    } as any)
-    .row()
-    .add({
-      text: "🚚 Канал відстеження",
-      url: "https://t.me/TTNShigiureshop",
-      style: "primary"
-    } as any);
+const getLotKeyboard = () => getDefaultKeyboard();
+const getAuctionKeyboard = () => getDefaultKeyboard();
 
-const getAuctionKeyboard = () => {
-  return new InlineKeyboard()
-    .add({
-      text: "❓ Відповіді на запитання",
-      url: "https://telegra.ph/SHCHo-take-lot-sistema-V%D1%96dpov%D1%96d-na-pitannya-04-05",
-      style: "primary"
-    } as any)
-    .row()
-    .add({
-      text: "🫂 Інформаційний чат",
-      url: "https://t.me/infoshigiureshop",
-      style: "success"
-    } as any)
-    .row()
-    .add({
-      text: "🚚 Канал відстеження",
-      url: "https://t.me/TTNShigiureshop",
-      style: "primary"
-    } as any);
-};
 export function startShigiBot() {
   const bot = new Bot(CONFIG.token);
   const processedMediaGroups = new Set<string>();
@@ -147,10 +81,12 @@ export function startShigiBot() {
       );
     }
   };
+  
   const loadDb = () => {
     initDb();
     return JSON.parse(fs.readFileSync(CONFIG.dbPath, "utf-8"));
   };
+  
   const saveDb = (data: any) =>
     fs.writeFileSync(CONFIG.dbPath, JSON.stringify(data, null, 2));
 
@@ -174,6 +110,22 @@ export function startShigiBot() {
   };
 
   initDb();
+
+  const auctionManager = new AuctionManager(
+    bot as any,
+    "./shigi_auctions.json",
+    {
+      notReply: "Зроби ставку відповіддю на попередню, будь ласка!",
+      tooSmall: (min) => `Пх, але цього не достатньо, мінімальна: ${min}`,
+      late: "Аукціон вже закінчився, ви трошки запізнилися 🙏\n Не сумуйте, в наступному аукціоні буде ще шанс!",
+      extended: "Ого! Ви встигли в останні хвилини! Час аукціону продовжено на 30 хв.",
+      ended: "Аукціон закінчився! Радий бачити стільки активності, дякую всім учасникам! Слідкуйте за наступними аукціонами, буде ще багато цікавого! 🥳",
+      editWarn: "Аяяй, я все бачу! Редагувати ставки заборонено 😏",
+      editLog: (old, newVal, link) => `🚨 <b>Редагування ставки!</b>\nБуло: ${old}\nСтало: ${newVal}\n<a href="${link}">Посилання</a>`,
+      deleteLog: (val, link) => `🗑 <b>Якийсь поганий хлопчик/дівчинка видалив ставку!</b>\nСума: ${val}\n<a href="${link}">Посилання</a>`
+    },
+    CONFIG.adminChatId
+  );
 
   bot.hears(/^[Лл]іам[!?.]*$/i, async (ctx) => {
     const replyText =
@@ -225,9 +177,8 @@ export function startShigiBot() {
         style: "primary"
       } as any)
       .row()
-      .text("Як працює бот і що збирає?", "about_bot"); // Додана кнопка
+      .text("Як працює бот і що збирає?", "about_bot");
 
-  // ─── ОБРОБНИКИ КОМАНД ТА КНОПОК ───
   bot.command("start", async (ctx) => {
     if (ctx.chat?.type !== "private") return;
     try {
@@ -313,7 +264,6 @@ GitHub: https://github.com/kit-kit4/mur
         await ctx.react("💘");
       } catch (e) {}
     }
-
     await next();
   });
 
@@ -339,7 +289,7 @@ GitHub: https://github.com/kit-kit4/mur
       return;
     }
 
-    let replyText = CONFIG.texts.default;
+    let replyText = "";
     let keyboard = getDefaultKeyboard();
 
     if (type === "l" || type === "л") {
@@ -350,6 +300,11 @@ GitHub: https://github.com/kit-kit4/mur
       keyboard = getAuctionKeyboard();
     }
 
+    if (!replyText) {
+      await ctx.reply("❌ Невідомий тип. Використовуй a (аукціон) або l (лот).");
+      return;
+    }
+
     try {
       await ctx.api.sendMessage(chatId, formatPremiumEmoji(replyText), {
         reply_parameters: { message_id: messageId },
@@ -358,21 +313,18 @@ GitHub: https://github.com/kit-kit4/mur
       });
       await ctx.reply(`✅ Повідомлення успішно відправлено!`);
     } catch (e: any) {
-      await ctx.reply(
-        `❌ Помилка API: ${e.message}\nПеревір ID та права бота.`
-      );
+      await ctx.reply(`❌ Помилка API: ${e.message}\nПеревір ID та права бота.`);
     }
   });
+
   const sendPostMarkup = async (ctx: any) => {
     const mgId = ctx.msg.media_group_id;
-    if (mgId) {
-      if (processedMediaGroups.has(mgId)) return;
-      processedMediaGroups.add(mgId);
-      setTimeout(() => processedMediaGroups.delete(mgId), 60000);
-    }
+    
+
+    if (mgId && processedMediaGroups.has(mgId)) return;
 
     const text = (ctx.msg.text || ctx.msg.caption || "").toLowerCase();
-    let replyText = CONFIG.texts.default;
+    let replyText = "";
     let keyboard = getDefaultKeyboard();
 
     if (text.includes("[l]") || text.includes("[л]")) {
@@ -381,7 +333,12 @@ GitHub: https://github.com/kit-kit4/mur
     } else if (text.includes("[a]") || text.includes("[а]")) {
       replyText = CONFIG.texts.auction;
       keyboard = getAuctionKeyboard();
+    
+      auctionManager.registerPost(ctx.msg.message_id, ctx.chat.id, ctx.msg.text || ctx.msg.caption || "");
     }
+
+   
+    if (!replyText) return;
 
     try {
       await ctx.reply(formatPremiumEmoji(replyText), {
@@ -391,12 +348,21 @@ GitHub: https://github.com/kit-kit4/mur
         reply_markup: keyboard,
         parse_mode: "HTML"
       });
-    } catch (e) {}
+
+      // Додаємо в кеш 
+      if (mgId) {
+        processedMediaGroups.add(mgId);
+        setTimeout(() => processedMediaGroups.delete(mgId), 60000);
+      }
+    } catch (e) {
+      console.error("Помилка відправки маркапу:", e);
+    }
   };
 
   bot.on("channel_post", async (ctx) => {
-    if (CONFIG.allowedResources.includes(ctx.chat.id))
+    if (CONFIG.allowedResources.includes(ctx.chat.id)) {
       await sendPostMarkup(ctx);
+    }
   });
 
   bot.on("message", async (ctx, next) => {
@@ -410,6 +376,10 @@ GitHub: https://github.com/kit-kit4/mur
     await next();
   });
 
+  bot.on("edited_message", async (ctx) => {
+    await auctionManager.handleEdit(ctx as any);
+  });
+
   bot.on("message:text", async (ctx) => {
     if (
       ctx.from?.is_bot ||
@@ -417,6 +387,10 @@ GitHub: https://github.com/kit-kit4/mur
       ctx.chat.type === "private"
     )
       return;
+
+    //чи це не ставка
+    const isBid = await auctionManager.handleBid(ctx as any);
+    if (isBid) return; // це не ставка
 
     if (hasRussian(ctx.msg.text)) {
       const userId = ctx.from?.id;
@@ -433,7 +407,7 @@ GitHub: https://github.com/kit-kit4/mur
           `🚨 <b>ПОРУШЕННЯ МОВНИХ ПРАВИЛ</b>\n\n👤 <b>Юзер:</b> ${ctx.from.first_name}\n🆔 <b>ID:</b> <code>${userId}</code>\n🔗 <a href="https://t.me/c/${cleanChatId}/${ctx.msg.message_id}">Посилання</a>`
         );
       } else {
-        const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка,${ctx.from.first_name} спілкуємось  тільки українською, дякую!\n\nПрошу видалити/відредагувати повідомлення.❤️`;
+        const warnText = `Ой-ой, помітив російську в чаті 🥺\nБудь ласка, ${ctx.from.first_name} спілкуємось тільки українською, дякую!\n\nПрошу видалити/відредагувати повідомлення.❤️`;
 
         try {
           await ctx.reply(warnText, {
@@ -445,6 +419,7 @@ GitHub: https://github.com/kit-kit4/mur
       }
     }
   });
+
   bot.catch(async (err) => {
     const e = err.error;
     let errorMsg =
