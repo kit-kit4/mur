@@ -235,7 +235,6 @@ GitHub: https://github.com/kit-kit4/mur
   });
 
   bot.on("message", async (ctx, next) => {
-  // Примусово перетворюємо ID чату в число перед перевіркою
   const currentChatId = Number(ctx.chat.id);
 
   if (
@@ -243,13 +242,14 @@ GitHub: https://github.com/kit-kit4/mur
     currentChatId !== CONFIG.adminChatId &&
     ctx.chat.type !== "private"
   ) {
+    // ВИТЯГНИ ЦЕЙ ЛОГ У КОНСОЛЬ, ЩОБ ПОБАЧИТИ СПИСОК МАСИВУ НА СЕРВЕРІ
+    console.log(`[ЛІВ] Чат: ${currentChatId}. Дозволені на сервері:`, CONFIG.allowedResources);
+
     await logTo(
       CONFIG.threads.logs,
       `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${currentChatId}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`
     );
-    try {
-      await ctx.leaveChat();
-    } catch (e) {}
+    try { await ctx.leaveChat(); } catch (e) {}
     return;
   }
   await next();
