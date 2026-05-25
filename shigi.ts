@@ -235,22 +235,25 @@ GitHub: https://github.com/kit-kit4/mur
   });
 
   bot.on("message", async (ctx, next) => {
-    if (
-      !CONFIG.allowedResources.includes(ctx.chat.id) &&
-      ctx.chat.id !== CONFIG.adminChatId &&
-      ctx.chat.type !== "private"
-    ) {
-      await logTo(
-        CONFIG.threads.logs,
-        `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${ctx.chat.id}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`
-      );
-      try {
-        await ctx.leaveChat();
-      } catch (e) {}
-      return;
-    }
-    await next();
-  });
+  // Примусово перетворюємо ID чату в число перед перевіркою
+  const currentChatId = Number(ctx.chat.id);
+
+  if (
+    !CONFIG.allowedResources.includes(currentChatId) &&
+    currentChatId !== CONFIG.adminChatId &&
+    ctx.chat.type !== "private"
+  ) {
+    await logTo(
+      CONFIG.threads.logs,
+      `⚠️ <b>Спроба додавання!</b>\nЧат ID: <code>${currentChatId}</code>\nДія: <b>Ліваю...</b> 🏃‍♂️`
+    );
+    try {
+      await ctx.leaveChat();
+    } catch (e) {}
+    return;
+  }
+  await next();
+});
 
   bot.on("message", async (ctx, next) => {
     const userId = ctx.from?.id;
