@@ -143,7 +143,9 @@ export class AuctionManager {
         }
         
         if (replyId !== auction.lastBidMsgId) {
-            await this.sendTempWarning(ctx, this.texts.notReplyToLast);
+            const cleanChatId = auction.chatId.toString().replace("-100", "");
+            const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
+            await this.sendTempWarning(ctx, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Остання ставка тут</a>`);
             auction.invalidBids[msgId] = text; 
             this.isDirty = true;
             return true;
@@ -205,15 +207,33 @@ export class AuctionManager {
 
         for (const [auctionId, auction] of Object.entries(this.activeAuctions)) {
             let oldVal: string | number | null = null;
+            let isInvalid = false;
 
             if (auction.bids[msgId]) {
                 oldVal = auction.bids[msgId].amount;
             } else if (auction.invalidBids?.[msgId]) {
-                oldVal = `(Хибна ставка) ${auction.invalidBids[msgId]}`;
+                oldVal = auction.invalidBids[msgId];
+                isInvalid = true;
             }
 
             if (oldVal !== null) {
                 const newText = ctx.editedMessage.text || "видалив текст";
+                const cleanNewText = newText.replace(/[.*]/g, "").trim().toLowerCase();
+
+                if (!isInvalid) {
+                    let newAmount = NaN;
+                    if (["поч", "поч.", "початкова"].includes(cleanNewText)) {
+                        newAmount = auction.startBid;
+                    } else {
+                        const bidMatch = cleanNewText.match(/^(\d+)\s*(?:грн|uah|₴)?$/);
+                        if (bidMatch) {
+                            newAmount = parseInt(bidMatch[1]);
+                        }
+                    }
+                    if (newAmount === oldVal) return;
+                } else {
+                    if (cleanNewText === (oldVal as string).toLowerCase().replace(/[.*]/g, "").trim()) return;
+                }
                 
                 await ctx.reply(this.texts.editWarn, { reply_parameters: { message_id: msgId } }).catch(() => {});
                 
@@ -251,7 +271,7 @@ export class AuctionManager {
     }
 
     private async sendTempWarning(ctx: Context, text: string) {
-        const msg = await ctx.reply(`❌ ${text}`, { reply_parameters: { message_id: ctx.message!.message_id } });
+        const msg = await ctx.reply(`❌ ${text}`, { reply_parameters: { message_id: ctx.message!.message_id }, parse_mode: "HTML" });
         setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
     }
 }
