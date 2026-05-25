@@ -1,20 +1,18 @@
 import * as fs from 'fs';
 import { Bot, Context } from 'grammy';
 
-// Структура ткст
 export interface AuctionTexts {
     notReply: string;
     notReplyToLast: string; 
     tooSmall: (minRequired: number) => string;
     late: string;
+    lateNoBids: string;
     extended: string;
-    ended: string;
     editWarn: string;
     editLog: (oldVal: number | string, newVal: number | string, link: string) => string;
-    deleteLog: (val: number, link: string) => string;
+    deleteLog: (val: number | string, link: string) => string;
 }
 
-// Структура аук
 interface AuctionData {
     chatId: number;
     startBid: number;
@@ -22,7 +20,7 @@ interface AuctionData {
     currentBid: number;
     endTime: number | null;
     isDynamic: boolean;
-    lastBidMsgId: number; // ID 
+    lastBidMsgId: number; 
     invalidBids: Record<number, string>; 
     bids: Record<number, { userId: number; amount: number; text: string }>; 
 }
@@ -43,7 +41,16 @@ export class AuctionManager {
 
     private loadDb() {
         if (fs.existsSync(this.dbPath)) {
-            this.activeAuctions = JSON.parse(fs.readFileSync(this.dbPath, "utf-8"));
+            const data = JSON.parse(fs.readFileSync(this.dbPath, "utf-8"));
+            for (const key in data) {
+                if (!data[key].invalidBids) {
+                    data[key].invalidBids = {};
+                }
+                if (!data[key].lastBidMsgId) {
+                    data[key].lastBidMsgId = parseInt(key); 
+                }
+            }
+            this.activeAuctions = data;
         } else {
             fs.writeFileSync(this.dbPath, JSON.stringify({}));
         }
@@ -55,7 +62,7 @@ export class AuctionManager {
             await fs.promises.writeFile(this.dbPath, JSON.stringify(this.activeAuctions, null, 2));
             this.isDirty = false;
         } catch (e) {
-            console.error(`Помилка запису БД аукціонів (${this.dbPath}):`, e);
+            console.error(e);
         }
     }
 
@@ -94,21 +101,18 @@ export class AuctionManager {
         const auction = this.activeAuctions[auctionId];
         const now = Date.now();
 
-        // 1. Перевірка закінчення часу
         if (auction.endTime && now > auction.endTime) {
             const isDeleted = await ctx.deleteMessage().then(() => true).catch(() => false);
+            const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
             
             if (isDeleted) {
-                
-                const msg = await ctx.reply(this.texts.late);
+                const msg = await ctx.reply(responseText);
                 setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
             } else {
-               
-                await ctx.reply(this.texts.late, { reply_parameters: { message_id: msgId } });
+                await ctx.reply(responseText, { reply_parameters: { message_id: msgId } });
             }
             return true;
         }
-
         
         if (replyId !== auction.lastBidMsgId) {
             await this.sendTempWarning(ctx, this.texts.notReplyToLast);
@@ -122,11 +126,9 @@ export class AuctionManager {
             bidAmount = auction.startBid;
         }
 
-        if (isNaN(bidAmount)) return false; //(не число)
+        if (isNaN(bidAmount)) return false; 
 
-        // 3. Валідація суми
         if (auction.currentBid === 0) {
-            // Перша 
             if (bidAmount < auction.startBid) {
                 await this.sendTempWarning(ctx, this.texts.tooSmall(auction.startBid));
                 auction.invalidBids[msgId] = text;
@@ -135,7 +137,6 @@ export class AuctionManager {
             }
             if (auction.isDynamic) auction.endTime = now + 24 * 60 * 60 * 1000;
         } else {
-            // Наступні
             const minRequired = auction.currentBid + auction.step;
             if (bidAmount < minRequired) {
                 await this.sendTempWarning(ctx, this.texts.tooSmall(minRequired));
@@ -144,14 +145,12 @@ export class AuctionManager {
                 return true;
             }
             
-            // Анти-снайпер
             if (auction.endTime && (auction.endTime - now) < 30 * 60 * 1000) {
                 auction.endTime += 30 * 60 * 1000;
                 await ctx.reply(this.texts.extended, { reply_parameters: { message_id: msgId } });
             }
         }
 
-        // Успішна ставка
         auction.currentBid = bidAmount;
         auction.lastBidMsgId = msgId; 
         auction.bids[msgId] = {
@@ -165,7 +164,6 @@ export class AuctionManager {
         return true;
     }
 
-    //  малі/хибні ставки)
     public async handleEdit(ctx: Context) {
         if (!ctx.editedMessage) return;
         const msgId = ctx.editedMessage.message_id;
@@ -175,17 +173,15 @@ export class AuctionManager {
 
             if (auction.bids[msgId]) {
                 oldVal = auction.bids[msgId].amount;
-            } else if (auction.invalidBids[msgId]) {
+            } else if (auction.invalidBids?.[msgId]) {
                 oldVal = `(Хибна ставка) ${auction.invalidBids[msgId]}`;
             }
 
             if (oldVal !== null) {
                 const newText = ctx.editedMessage.text || "видалив текст";
                 
-                // Сваримо
-                await ctx.reply(this.texts.editWarn, { reply_parameters: { message_id: msgId } });
+                await ctx.reply(this.texts.editWarn, { reply_parameters: { message_id: msgId } }).catch(() => {});
                 
-                // адмінам
                 const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
                 await this.bot.api.sendMessage(this.adminChatId, this.texts.editLog(oldVal, newText, link), { parse_mode: "HTML" }).catch(() => {});
                 return;
@@ -193,19 +189,34 @@ export class AuctionManager {
         }
     }
 
-    // Допоміжні методи
+    public async handleDelete(msgId: number) {
+        for (const [auctionId, auction] of Object.entries(this.activeAuctions)) {
+            let deletedVal: string | number | null = null;
+
+            if (auction.bids[msgId]) {
+                deletedVal = auction.bids[msgId].amount;
+            } else if (auction.invalidBids?.[msgId]) {
+                deletedVal = `(Хибна ставка) ${auction.invalidBids[msgId]}`;
+            }
+
+            if (deletedVal !== null) {
+                const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
+                await this.bot.api.sendMessage(this.adminChatId, this.texts.deleteLog(deletedVal, link), { parse_mode: "HTML" }).catch(() => {});
+                return;
+            }
+        }
+    }
+
     private findAuctionIdByReply(replyId: number): number | null {
-        if (this.activeAuctions[replyId]) return replyId; // Реплай на пост
+        if (this.activeAuctions[replyId]) return replyId; 
         for (const [aId, auction] of Object.entries(this.activeAuctions)) {
-            
-            if (auction.bids[replyId] || auction.invalidBids[replyId]) return parseInt(aId); 
+            if (auction.bids[replyId] || auction.invalidBids?.[replyId]) return parseInt(aId); 
         }
         return null;
     }
 
     private async sendTempWarning(ctx: Context, text: string) {
         const msg = await ctx.reply(`❌ ${text}`, { reply_parameters: { message_id: ctx.message!.message_id } });
-        // Видаляємо через 10 секунд
         setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
     }
 }
