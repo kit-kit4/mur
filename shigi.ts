@@ -156,18 +156,7 @@ export function startShigiBot() {
     }
   });
 
-  bot.hears(/^ти\s+любиш\s+(маму|тата)[!?.]*$/i, async (ctx) => {
-  const replyText = "Звісно я люблю! (Не виганяйте мене на вулицю)";
-
-  try {
-    await ctx.reply(replyText, {
-      parse_mode: "HTML",
-      reply_parameters: { message_id: ctx.msg.message_id }
-    });
-  } catch (e) {
-    await ctx.reply(replyText, { parse_mode: "HTML" }).catch(() => {});
-  }
-});
+ 
 
   const getStartText = () =>
     `<prem>6316495320033266646+😃</prem> Привіт! Я <b>Ліам</b> — маскот і помічник <b>Shigiure Shop</b> <prem>5292214030176394674+😃</prem>\n\nЯкщо у вас є питання, можливо, ми вже відповіли на них. Усі кнопки знизу клікабельні та ведуть на інформаційну сторінку.\n\n<prem>5289784088004172160+😃</prem> <u>Також нагадую, що в нас є чат спілкування:</u>\n\n<a href="https://t.me/infoshigiureshop">ТИЦЬ, аби доєднатись</a>\n\nЯкщо у вас залишились питання — зверніться до адміна @froggw, вона з радістю допоможе <prem>5289617713856022447+😃</prem>`;
