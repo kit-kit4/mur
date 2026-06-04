@@ -214,6 +214,15 @@ GitHub: https://github.com/kit-kit4/mur
     }).catch(console.error);
   });
 
+  bot.hears(/^!відповідь\s+(.+)$/i, async (ctx) => {
+    const text = ctx.match[1]; 
+    const answer = Math.random() > 0.5 ? "Так" : "Ні"; 
+
+    await ctx.reply(`Я думаю, що "${text}": ${answer}`, {
+      reply_parameters: { message_id: ctx.msg.message_id }
+    }).catch(console.error);
+  });
+
   bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !CONFIG.admins.includes(userId)) return;
