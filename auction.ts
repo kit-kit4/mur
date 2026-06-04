@@ -38,7 +38,7 @@ export class AuctionManager {
     ) {
         this.loadDb();
         setInterval(() => this.saveDb(), 5000);
-        setInterval(() => this.checkEndedAuctions(), 10000); // Пулінг закінчення таймерів
+        setInterval(() => this.checkEndedAuctions(), 10000);
     }
 
     private loadDb() {
@@ -78,12 +78,11 @@ export class AuctionManager {
     }
 
     private async finishAuction(auctionId: number, auction: AuctionData) {
-        // Видаляємо аукціон, щоб не обробляти його двічі
         delete this.activeAuctions[auctionId];
         this.isDirty = true;
 
         if (auction.currentBid === 0) {
-            return; // Завершився без ставок
+            return;
         }
 
         const winnerMsgId = auction.lastBidMsgId;
@@ -94,12 +93,10 @@ export class AuctionManager {
         const auctionLink = `https://t.me/c/${cleanChatId}/${auctionId}`;
         const userLink = `<a href="tg://user?id=${winner.userId}">${winner.firstName}</a>`;
 
-        // Відповідь на переможну ставку
         await this.bot.api.sendMessage(auction.chatId, "ВАША", {
             reply_parameters: { message_id: winnerMsgId }
         }).catch(() => {});
 
-        // Відправка даних в адмін-групу
         const adminMsg = 
             `🏆 <b>Аукціон завершено!</b>\n` +
             `Переможець: ${userLink} (ID: <code>${winner.userId}</code>)\n` +
@@ -185,8 +182,6 @@ export class AuctionManager {
         const replyId = ctx.message.reply_to_message.message_id;
         const now = Date.now();
 
-        // Ця перевірка залишається як "запобіжник", якщо хтось зробить ставку
-        // в мілісекундному проміжку до того, як спрацює checkEndedAuctions
         if (auction.endTime && now > auction.endTime) {
             const isDeleted = await ctx.deleteMessage().then(() => true).catch(() => false);
             const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
@@ -272,14 +267,47 @@ export class AuctionManager {
         auction.lastBidMsgId = msgId; 
         auction.bids[msgId] = {
             userId: ctx.from!.id,
-            firstName: ctx.from!.first_name, // Зберігаємо ім'я для гіперпосилання
+            firstName: ctx.from!.first_name,
             amount: bidAmount,
             text: ctx.message.text || ""
         };
         this.isDirty = true;
 
         await ctx.react("💘").catch(() => {});
+
+        this.checkPreviousBidsBackground(auctionId, msgId);
+
         return true;
+    }
+
+    private async checkPreviousBidsBackground(auctionId: number, currentBidMsgId: number) {
+        const auction = this.activeAuctions[auctionId];
+        if (!auction) return;
+
+        const bidIds = Object.keys(auction.bids)
+            .map(id => parseInt(id))
+            .filter(id => id !== currentBidMsgId);
+
+        for (const msgId of bidIds) {
+            if (!this.activeAuctions[auctionId] || !auction.bids[msgId]) continue;
+
+            const isAlive = await this.isMessageAlive(auction.chatId, msgId);
+            
+            if (!isAlive) {
+                const deletedBid = auction.bids[msgId];
+                delete auction.bids[msgId];
+                this.isDirty = true;
+                
+                const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
+                await this.bot.api.sendMessage(
+                    this.adminChatId, 
+                    this.texts.deleteLog(deletedBid.amount, link), 
+                    { parse_mode: "HTML" }
+                ).catch(() => {});
+            }
+
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
     }
 
     public async handleEdit(ctx: Context) {
@@ -325,7 +353,16 @@ export class AuctionManager {
                             newAmount = parseInt(bidMatch[1]);
                         }
                     }
-                    if (newAmount === oldVal) return;
+
+                    if (!isNaN(newAmount)) {
+                        if (msgId === auction.lastBidMsgId && newAmount > (oldVal as number)) {
+                            auction.currentBid = newAmount;
+                            auction.bids[msgId].amount = newAmount;
+                            this.isDirty = true;
+                            return; 
+                        }
+                        if (newAmount === oldVal) return;
+                    }
                 } else {
                     if (cleanNewText === (oldVal as string).toLowerCase().replace(/[.*]/g, "").trim()) return;
                 }
