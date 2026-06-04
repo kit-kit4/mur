@@ -4,5 +4,5 @@ import { startShigiBot } from "./shigi";
 
 console.log("+-----------------------------+");
 
-startMurBot();
+//startMurBot();
 startShigiBot();
