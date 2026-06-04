@@ -23,7 +23,7 @@ interface AuctionData {
     isDynamic: boolean;
     lastBidMsgId: number; 
     invalidBids: Record<number, string>; 
-    bids: Record<number, { userId: number; amount: number; text: string }>; 
+    bids: Record<number, { userId: number; firstName: string; amount: number; text: string }>; 
 }
 
 export class AuctionManager {
@@ -38,6 +38,7 @@ export class AuctionManager {
     ) {
         this.loadDb();
         setInterval(() => this.saveDb(), 5000);
+        setInterval(() => this.checkEndedAuctions(), 10000); // Пулінг закінчення таймерів
     }
 
     private loadDb() {
@@ -65,6 +66,47 @@ export class AuctionManager {
         } catch (e) {
             console.error(e);
         }
+    }
+
+    private async checkEndedAuctions() {
+        const now = Date.now();
+        for (const [idStr, auction] of Object.entries(this.activeAuctions)) {
+            if (auction.endTime && now >= auction.endTime) {
+                await this.finishAuction(parseInt(idStr), auction);
+            }
+        }
+    }
+
+    private async finishAuction(auctionId: number, auction: AuctionData) {
+        // Видаляємо аукціон, щоб не обробляти його двічі
+        delete this.activeAuctions[auctionId];
+        this.isDirty = true;
+
+        if (auction.currentBid === 0) {
+            return; // Завершився без ставок
+        }
+
+        const winnerMsgId = auction.lastBidMsgId;
+        const winner = auction.bids[winnerMsgId];
+        if (!winner) return;
+
+        const cleanChatId = auction.chatId.toString().replace("-100", "");
+        const auctionLink = `https://t.me/c/${cleanChatId}/${auctionId}`;
+        const userLink = `<a href="tg://user?id=${winner.userId}">${winner.firstName}</a>`;
+
+        // Відповідь на переможну ставку
+        await this.bot.api.sendMessage(auction.chatId, "ВАША", {
+            reply_parameters: { message_id: winnerMsgId }
+        }).catch(() => {});
+
+        // Відправка даних в адмін-групу
+        const adminMsg = 
+            `🏆 <b>Аукціон завершено!</b>\n` +
+            `Переможець: ${userLink} (ID: <code>${winner.userId}</code>)\n` +
+            `Ставка: <b>${winner.amount}</b>\n` +
+            `🔗 <a href="${auctionLink}">Пост аукціону</a>`;
+
+        await this.bot.api.sendMessage(this.adminChatId, adminMsg, { parse_mode: "HTML" }).catch(() => {});
     }
 
     private async isMessageAlive(chatId: number, msgId: number): Promise<boolean> {
@@ -143,6 +185,8 @@ export class AuctionManager {
         const replyId = ctx.message.reply_to_message.message_id;
         const now = Date.now();
 
+        // Ця перевірка залишається як "запобіжник", якщо хтось зробить ставку
+        // в мілісекундному проміжку до того, як спрацює checkEndedAuctions
         if (auction.endTime && now > auction.endTime) {
             const isDeleted = await ctx.deleteMessage().then(() => true).catch(() => false);
             const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
@@ -228,6 +272,7 @@ export class AuctionManager {
         auction.lastBidMsgId = msgId; 
         auction.bids[msgId] = {
             userId: ctx.from!.id,
+            firstName: ctx.from!.first_name, // Зберігаємо ім'я для гіперпосилання
             amount: bidAmount,
             text: ctx.message.text || ""
         };
