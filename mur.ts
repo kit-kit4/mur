@@ -216,7 +216,7 @@ GitHub: https://github.com/kit-kit4/mur
 
   bot.hears(/^!відповідь\s+(.+)$/i, async (ctx) => {
     const text = ctx.match[1]; 
-    const answer = Math.random() > 0.5 ? "ТАК ТАК ТАК" : "ДУЖЕ ТАК"; 
+    const answer = Math.random() > 0.5 ? "Так" : "Ні"; 
 
     await ctx.reply(`Я думаю, що "${text}": ${answer}`, {
       reply_parameters: { message_id: ctx.msg.message_id }
