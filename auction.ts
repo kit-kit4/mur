@@ -4,30 +4,42 @@ import { Bot, Context } from 'grammy';
 export interface AuctionTexts {
     notReply: string;
     notReplyToLast: string;
-    bidDeletedReply: string;
     tooSmall: (minRequired: number) => string;
     late: string;
     lateNoBids: string;
     extended: string;
     editWarn: string;
-    editLog: (oldVal: number | string, newVal: number | string, link: string) => string;
-    deleteLog: (val: number | string, link: string) => string;
+    // Логи для адмінів тепер можуть бути простішими, бо ми зберігаємо все в базі
+    editLog: (userId: number, link: string) => string; 
+}
+
+// Розширена структура для Web App
+interface BidLog {
+    msgId: number;
+    userId: number;
+    firstName: string;
+    amount: number | null;
+    rawText: string;
+    timestamp: number;
+    isValid: boolean;
+    invalidReason?: string;
 }
 
 interface AuctionData {
+    auctionId: number; 
     chatId: number;
     startBid: number;
     step: number;
     currentBid: number;
     endTime: number | null;
     isDynamic: boolean;
-    lastBidMsgId: number; 
-    invalidBids: Record<number, string>; 
-    bids: Record<number, { userId: number; firstName: string; amount: number; text: string }>; 
+    lastBidMsgId: number;
+    createdAt: number;
+    history: BidLog[]; 
 }
 
 export class AuctionManager {
-    private activeAuctions: Record<number, AuctionData> = {}; 
+    private activeAuctions: Record<number, AuctionData> = {};
     private isDirty = false;
 
     constructor(
@@ -38,21 +50,12 @@ export class AuctionManager {
     ) {
         this.loadDb();
         setInterval(() => this.saveDb(), 5000);
-        setInterval(() => this.checkEndedAuctions(), 10000); // Пулінг закінчення таймерів
+        setInterval(() => this.checkEndedAuctions(), 10000);
     }
 
     private loadDb() {
         if (fs.existsSync(this.dbPath)) {
-            const data = JSON.parse(fs.readFileSync(this.dbPath, "utf-8"));
-            for (const key in data) {
-                if (!data[key].invalidBids) {
-                    data[key].invalidBids = {};
-                }
-                if (!data[key].lastBidMsgId) {
-                    data[key].lastBidMsgId = parseInt(key); 
-                }
-            }
-            this.activeAuctions = data;
+            this.activeAuctions = JSON.parse(fs.readFileSync(this.dbPath, "utf-8"));
         } else {
             fs.writeFileSync(this.dbPath, JSON.stringify({}));
         }
@@ -64,7 +67,7 @@ export class AuctionManager {
             await fs.promises.writeFile(this.dbPath, JSON.stringify(this.activeAuctions, null, 2));
             this.isDirty = false;
         } catch (e) {
-            console.error(e);
+            console.error("Помилка збереження БД:", e);
         }
     }
 
@@ -78,28 +81,23 @@ export class AuctionManager {
     }
 
     private async finishAuction(auctionId: number, auction: AuctionData) {
-        // Видаляємо аукціон, щоб не обробляти його двічі
         delete this.activeAuctions[auctionId];
         this.isDirty = true;
 
-        if (auction.currentBid === 0) {
-            return; // Завершився без ставок
-        }
+        if (auction.currentBid === 0) return;
 
-        const winnerMsgId = auction.lastBidMsgId;
-        const winner = auction.bids[winnerMsgId];
+        const validBids = auction.history.filter(b => b.isValid);
+        const winner = validBids[validBids.length - 1]; 
         if (!winner) return;
 
         const cleanChatId = auction.chatId.toString().replace("-100", "");
         const auctionLink = `https://t.me/c/${cleanChatId}/${auctionId}`;
         const userLink = `<a href="tg://user?id=${winner.userId}">${winner.firstName}</a>`;
 
-        // Відповідь на переможну ставку
         await this.bot.api.sendMessage(auction.chatId, "ВАША", {
-            reply_parameters: { message_id: winnerMsgId }
+            reply_parameters: { message_id: winner.msgId }
         }).catch(() => {});
 
-        // Відправка даних в адмін-групу
         const adminMsg = 
             `🏆 <b>Аукціон завершено!</b>\n` +
             `Переможець: ${userLink} (ID: <code>${winner.userId}</code>)\n` +
@@ -107,19 +105,6 @@ export class AuctionManager {
             `🔗 <a href="${auctionLink}">Пост аукціону</a>`;
 
         await this.bot.api.sendMessage(this.adminChatId, adminMsg, { parse_mode: "HTML" }).catch(() => {});
-    }
-
-    private async isMessageAlive(chatId: number, msgId: number): Promise<boolean> {
-        try {
-            const ping = await this.bot.api.copyMessage(this.adminChatId, chatId, msgId, { disable_notification: true });
-            await this.bot.api.deleteMessage(this.adminChatId, ping.message_id).catch(() => {});
-            return true;
-        } catch (e: any) {
-            if (e.description?.includes("message to copy not found") || e.description?.includes("not found")) {
-                return false;
-            }
-            return true; 
-        }
     }
 
     public registerPost(messageId: number, chatId: number, text: string) {
@@ -131,6 +116,7 @@ export class AuctionManager {
         const isDynamic = text.includes("після публікування першої ставки");
 
         this.activeAuctions[messageId] = {
+            auctionId: messageId,
             chatId,
             startBid: parseInt(startMatch[1]),
             step: parseInt(stepMatch[1]),
@@ -138,235 +124,140 @@ export class AuctionManager {
             endTime: isDynamic ? null : Date.now() + 24 * 60 * 60 * 1000,
             isDynamic,
             lastBidMsgId: messageId,
-            invalidBids: {},
-            bids: {}
+            createdAt: Date.now(),
+            history: []
         };
         this.isDirty = true;
+    }
+
+    private getAuctionId(ctx: Context): number | null {
+        if (ctx.message?.message_thread_id && this.activeAuctions[ctx.message.message_thread_id]) {
+            return ctx.message.message_thread_id;
+        }
+        if (ctx.message?.reply_to_message?.message_id && this.activeAuctions[ctx.message.reply_to_message.message_id]) {
+            return ctx.message.reply_to_message.message_id;
+        }
+        
+        const replyId = ctx.message?.reply_to_message?.message_id;
+        if (replyId) {
+            for (const [aId, auction] of Object.entries(this.activeAuctions)) {
+                if (auction.history.some(log => log.msgId === replyId)) return parseInt(aId);
+            }
+        }
+        return null;
+    }
+
+    private extractBidAmount(text: string, startBid: number): number {
+        const cleanText = text.toLowerCase().replace(/\s+/g, '');
+        if (cleanText.includes("поч")) return startBid;
+        const match = cleanText.match(/\d+/);
+        return match ? parseInt(match[0], 10) : NaN;
     }
 
     public async handleBid(ctx: Context) {
         if (!ctx.message || ctx.from?.is_bot) return false;
 
-        let auctionId: number | null = null;
-        
-        if (ctx.message.message_thread_id && this.activeAuctions[ctx.message.message_thread_id]) {
-            auctionId = ctx.message.message_thread_id;
-        } else if (ctx.message.reply_to_message) {
-            auctionId = this.findAuctionIdByReply(ctx.message.reply_to_message.message_id);
-        }
+        const auctionId = this.getAuctionId(ctx);
+        if (!auctionId) return false;
 
-        if (!auctionId) return false; 
-        
         const auction = this.activeAuctions[auctionId];
         const msgId = ctx.message.message_id;
         const text = ctx.message.text || "";
-        
-        const cleanText = text.replace(/[.*]/g, "").trim().toLowerCase();
-        let bidAmount = NaN;
-        
-        if (["поч", "поч.", "початкова"].includes(cleanText)) {
-            bidAmount = auction.startBid;
-        } else {
-            const bidMatch = cleanText.match(/^(\d+)\s*(?:грн|uah|₴)?$/);
-            if (bidMatch) {
-                bidAmount = parseInt(bidMatch[1]);
-            }
-        }
-
-        if (isNaN(bidAmount)) return false; 
-
-        if (!ctx.message.reply_to_message) {
-            await this.sendTempWarning(ctx, this.texts.notReply);
-            auction.invalidBids[msgId] = text;
-            this.isDirty = true;
-            return true;
-        }
-
-        const replyId = ctx.message.reply_to_message.message_id;
         const now = Date.now();
 
-        // Ця перевірка залишається як "запобіжник", якщо хтось зробить ставку
-        // в мілісекундному проміжку до того, як спрацює checkEndedAuctions
-        if (auction.endTime && now > auction.endTime) {
-            const isDeleted = await ctx.deleteMessage().then(() => true).catch(() => false);
-            const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
-            
-            if (isDeleted) {
-                const msg = await ctx.reply(responseText);
-                setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
-            } else {
-                await ctx.reply(responseText, { reply_parameters: { message_id: msgId } });
-            }
+        const logEntry: Omit<BidLog, 'isValid'> = {
+            msgId,
+            userId: ctx.from!.id,
+            firstName: ctx.from!.first_name,
+            amount: null,
+            rawText: text,
+            timestamp: now
+        };
+        const bidAmount = this.extractBidAmount(text, auction.startBid);
+        if (isNaN(bidAmount)) {
+            return false; 
+        }
+
+        if (!ctx.message.reply_to_message) {
+            await this.rejectBid(ctx, auction, logEntry, this.texts.notReply, "No reply");
             return true;
         }
-        
-        if (replyId !== auction.lastBidMsgId) {
-            const isAlive = await this.isMessageAlive(auction.chatId, auction.lastBidMsgId);
 
-            if (isAlive) {
-                const cleanChatId = auction.chatId.toString().replace("-100", "");
-                const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
-                await this.sendTempWarning(ctx, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Остання ставка тут</a>`);
-                auction.invalidBids[msgId] = text; 
-                this.isDirty = true;
-                return true;
-            } else {
-                const deletedBidInfo = auction.bids[auction.lastBidMsgId];
-                delete auction.bids[auction.lastBidMsgId]; 
-
-                let maxBid = 0;
-                let newLastMsgId = auctionId; 
-
-                for (const [idStr, bidInfo] of Object.entries(auction.bids)) {
-                    if (bidInfo.amount > maxBid) {
-                        maxBid = bidInfo.amount;
-                        newLastMsgId = parseInt(idStr);
-                    }
-                }
-
-                auction.currentBid = maxBid;
-                auction.lastBidMsgId = newLastMsgId;
-
-                const deletedAmount = deletedBidInfo ? deletedBidInfo.amount : "невідомо";
-                const deletedByUserId = deletedBidInfo ? deletedBidInfo.userId : "невідомо";
-
-                await this.bot.api.sendMessage(
-                    this.adminChatId, 
-                    `🚨 <b>Відкат аукціону!</b>\nСтавку на <code>${deletedAmount}</code> (від ID: <code>${deletedByUserId}</code>) було видалено.\nЦіну відкочено до <code>${maxBid || auction.startBid}</code>.`, 
-                    { parse_mode: "HTML" }
-                ).catch(() => {});
-
-                const cleanChatId = auction.chatId.toString().replace("-100", "");
-                const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
-                await this.sendTempWarning(ctx, `${this.texts.bidDeletedReply}\n\n🔗 <a href="${lastBidLink}">Відновлена остання ставка тут</a>`);
-                auction.invalidBids[msgId] = text; 
-                this.isDirty = true;
-                return true;
-            }
+        if (ctx.message.reply_to_message.message_id !== auction.lastBidMsgId) {
+            const cleanChatId = auction.chatId.toString().replace("-100", "");
+            const lastBidLink = `https://t.me/c/${cleanChatId}/${auction.lastBidMsgId}`;
+            await this.rejectBid(ctx, auction, logEntry, `${this.texts.notReplyToLast}\n\n🔗 <a href="${lastBidLink}">Остання ставка тут</a>`, "Wrong reply target");
+            return true;
         }
 
-        if (auction.currentBid === 0) {
-            if (bidAmount < auction.startBid) {
-                await this.sendTempWarning(ctx, this.texts.tooSmall(auction.startBid));
-                auction.invalidBids[msgId] = text;
-                this.isDirty = true;
-                return true;
-            }
-            if (auction.isDynamic) auction.endTime = now + 24 * 60 * 60 * 1000;
-        } else {
-            const minRequired = auction.currentBid + auction.step;
-            if (bidAmount < minRequired) {
-                await this.sendTempWarning(ctx, this.texts.tooSmall(minRequired));
-                auction.invalidBids[msgId] = text;
-                this.isDirty = true;
-                return true;
-            }
-            
-            if (auction.endTime && (auction.endTime - now) < 30 * 60 * 1000) {
-                auction.endTime += 30 * 60 * 1000;
-                await ctx.reply(this.texts.extended, { reply_parameters: { message_id: msgId } }).catch(() => {});
-            }
+        if (auction.endTime && now > auction.endTime) {
+            await ctx.deleteMessage().catch(() => {});
+            const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
+            await this.sendTempMessage(ctx, responseText);
+            return true;
         }
 
+        if (auction.currentBid === 0 && bidAmount < auction.startBid) {
+            await this.rejectBid(ctx, auction, logEntry, this.texts.tooSmall(auction.startBid), "Below start bid");
+            return true;
+        }
+
+        const minRequired = auction.currentBid > 0 ? auction.currentBid + auction.step : auction.startBid;
+        if (auction.currentBid > 0 && bidAmount < minRequired) {
+            await this.rejectBid(ctx, auction, logEntry, this.texts.tooSmall(minRequired), "Bid too small");
+            return true;
+        }
+        logEntry.amount = bidAmount;
+        auction.history.push({ ...logEntry, isValid: true });
         auction.currentBid = bidAmount;
-        auction.lastBidMsgId = msgId; 
-        auction.bids[msgId] = {
-            userId: ctx.from!.id,
-            firstName: ctx.from!.first_name, // Зберігаємо ім'я для гіперпосилання
-            amount: bidAmount,
-            text: ctx.message.text || ""
-        };
-        this.isDirty = true;
+        auction.lastBidMsgId = msgId;
 
+        if (auction.isDynamic && auction.currentBid === bidAmount) {
+             auction.endTime = now + 24 * 60 * 60 * 1000;
+        } else if (auction.endTime && (auction.endTime - now) < 30 * 60 * 1000) {
+            auction.endTime += 30 * 60 * 1000;
+            await ctx.reply(this.texts.extended, { reply_parameters: { message_id: msgId } }).catch(() => {});
+        }
+
+        this.isDirty = true;
         await ctx.react("💘").catch(() => {});
         return true;
+    }
+
+    private async rejectBid(ctx: Context, auction: AuctionData, logEntry: any, warningText: string, reason: string) {
+        auction.history.push({ ...logEntry, isValid: false, invalidReason: reason });
+        this.isDirty = true;
+        await ctx.deleteMessage().catch(() => {});
+        await this.sendTempMessage(ctx, `❌ ${warningText}`);
     }
 
     public async handleEdit(ctx: Context) {
         if (!ctx.editedMessage) return;
         const msgId = ctx.editedMessage.message_id;
-        
-        if (this.activeAuctions[msgId]) {
-            const auction = this.activeAuctions[msgId];
-            const text = ctx.editedMessage.text || ctx.editedMessage.caption || "";
-            const startMatch = text.match(/початкова ставка\s*(?:-|:)\s*(\d+)/i);
-            const stepMatch = text.match(/мінімальн(?:е підняття|ий крок)\s*(?:-|:)\s*(\d+)/i);
-            
-            if (startMatch && stepMatch) {
-                auction.startBid = parseInt(startMatch[1]);
-                auction.step = parseInt(stepMatch[1]);
-                this.isDirty = true;
-            }
-            return; 
-        }
-
-        for (const [auctionId, auction] of Object.entries(this.activeAuctions)) {
-            let oldVal: string | number | null = null;
-            let isInvalid = false;
-
-            if (auction.bids[msgId]) {
-                oldVal = auction.bids[msgId].amount;
-            } else if (auction.invalidBids?.[msgId]) {
-                oldVal = auction.invalidBids[msgId];
-                isInvalid = true;
-            }
-
-            if (oldVal !== null) {
-                const newText = ctx.editedMessage.text || "видалив текст";
-                const cleanNewText = newText.replace(/[.*]/g, "").trim().toLowerCase();
-
-                if (!isInvalid) {
-                    let newAmount = NaN;
-                    if (["поч", "поч.", "початкова"].includes(cleanNewText)) {
-                        newAmount = auction.startBid;
-                    } else {
-                        const bidMatch = cleanNewText.match(/^(\d+)\s*(?:грн|uah|₴)?$/);
-                        if (bidMatch) {
-                            newAmount = parseInt(bidMatch[1]);
-                        }
-                    }
-                    if (newAmount === oldVal) return;
-                } else {
-                    if (cleanNewText === (oldVal as string).toLowerCase().replace(/[.*]/g, "").trim()) return;
-                }
-                
-                await ctx.reply(this.texts.editWarn, { reply_parameters: { message_id: msgId } }).catch(() => {});
-                
-                const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
-                await this.bot.api.sendMessage(this.adminChatId, this.texts.editLog(oldVal, newText, link), { parse_mode: "HTML" }).catch(() => {});
-                return;
-            }
-        }
-    }
-
-    public async handleDelete(msgId: number) {
-        for (const [auctionId, auction] of Object.entries(this.activeAuctions)) {
-            let deletedVal: string | number | null = null;
-
-            if (auction.bids[msgId]) {
-                deletedVal = auction.bids[msgId].amount;
-            } else if (auction.invalidBids?.[msgId]) {
-                deletedVal = `(Хибна ставка) ${auction.invalidBids[msgId]}`;
-            }
-
-            if (deletedVal !== null) {
-                const link = `https://t.me/c/${auction.chatId.toString().replace("-100", "")}/${msgId}`;
-                await this.bot.api.sendMessage(this.adminChatId, this.texts.deleteLog(deletedVal, link), { parse_mode: "HTML" }).catch(() => {});
-                return;
-            }
-        }
-    }
-
-    private findAuctionIdByReply(replyId: number): number | null {
-        if (this.activeAuctions[replyId]) return replyId; 
         for (const [aId, auction] of Object.entries(this.activeAuctions)) {
-            if (auction.bids[replyId] || auction.invalidBids?.[replyId]) return parseInt(aId); 
+            const isBid = auction.history.some(log => log.msgId === msgId);
+            
+            if (isBid) {
+                await ctx.deleteMessage().catch(() => {});
+                await this.sendTempMessage(ctx, this.texts.editWarn);
+                const cleanChatId = auction.chatId.toString().replace("-100", "");
+                const link = `https://t.me/c/${cleanChatId}/${aId}`;
+                await this.bot.api.sendMessage(
+                    this.adminChatId, 
+                    this.texts.editLog(ctx.from!.id, link), 
+                    { parse_mode: "HTML" }
+                ).catch(() => {});
+                
+                return;
+            }
         }
-        return null;
     }
 
-    private async sendTempWarning(ctx: Context, text: string) {
-        const msg = await ctx.reply(`❌ ${text}`, { reply_parameters: { message_id: ctx.message!.message_id }, parse_mode: "HTML" });
-        setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
+    private async sendTempMessage(ctx: Context, text: string) {
+        // Надсилаємо повідомлення без реплаю (оскільки оригінал видалено)
+        const msg = await ctx.reply(text, { parse_mode: "HTML" }).catch(() => null);
+        if (msg) {
+            setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
+        }
     }
 }

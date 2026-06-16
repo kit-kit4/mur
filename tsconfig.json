@@ -4,6 +4,6 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "strict": false,
-    "types": ["node"] 
+    "types": ["bun"] 
   }
 }
