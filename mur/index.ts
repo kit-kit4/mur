@@ -38,7 +38,7 @@ export function startMurBot() {
   };
 
   const sendPostMarkup = async (ctx: Context) => {
-    const msg = ctx.msg || ctx.channelPost || ctx.editedMessage || ctx.editedChannelPost;
+    const msg = ctx.msg || ctx.channelPost || ctx.editedMessage;// || ctx.editedChannelPost
     if (!msg) return;
 
     const mgId = msg.media_group_id;
@@ -138,7 +138,7 @@ export function startMurBot() {
     await ctx.answerCallbackQuery().catch(() => {});
   });
 
-  bot.on(["channel_post", "edited_channel_post"], async (ctx) => {
+  bot.on(["channel_post"], async (ctx) => {//, "edited_channel_post"
     if (CONFIG.allowedResources.includes(ctx.chat.id)) await sendPostMarkup(ctx);
   });
 
