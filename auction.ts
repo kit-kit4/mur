@@ -257,7 +257,7 @@ export class AuctionManager {
         // Надсилаємо повідомлення без реплаю (оскільки оригінал видалено)
         const msg = await ctx.reply(text, { parse_mode: "HTML" }).catch(() => null);
         if (msg) {
-            setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 10000);
+            setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 25000);
         }
     }
 }
