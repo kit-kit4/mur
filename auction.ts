@@ -43,6 +43,11 @@ export class AuctionManager {
     private activeAuctions: Record<number, AuctionData> = {};
     private isDirty = false;
 
+    // Константа хард-ліміту життя (3 доби)
+    private readonly MAX_LIFETIME_MS = 72 * 60 * 60 * 1000; 
+    // Максимальний час очікування першої ставки для динамічних (24 години)
+    private readonly MAX_DYNAMIC_WAIT_MS = 24 * 60 * 60 * 1000;
+
     constructor(
         private bot: Bot<Context>,
         private dbPath: string,
@@ -51,7 +56,6 @@ export class AuctionManager {
     ) {
         this.loadDb();
         setInterval(() => this.saveDb(), 5000);
-        // Зменшено інтервал до 3 секунд, щоб бот вчасно стопав аукціони
         setInterval(() => this.checkEndedAuctions(), 3000);
     }
 
@@ -76,8 +80,20 @@ export class AuctionManager {
     private async checkEndedAuctions() {
         const now = Date.now();
         for (const [idStr, auction] of Object.entries(this.activeAuctions)) {
+            const auctionId = parseInt(idStr);
+            const ageMs = now - auction.createdAt;
+            const isZombieDynamic = auction.isDynamic && auction.currentBid === 0 && ageMs > this.MAX_DYNAMIC_WAIT_MS;
+            const isTooOld = ageMs > this.MAX_LIFETIME_MS;
+
+            if (isZombieDynamic || isTooOld) {
+                delete this.activeAuctions[auctionId];
+                this.isDirty = true;
+                continue; 
+            }
+
+     
             if (auction.endTime && now >= auction.endTime) {
-                await this.finishAuction(parseInt(idStr), auction);
+                await this.finishAuction(auctionId, auction);
             }
         }
     }
@@ -117,17 +133,16 @@ export class AuctionManager {
 
         const isDynamic = text.includes("після публікування першої ставки");
 
-        // Парсимо тривалість у годинах (шукаємо "24 годин" або "24 год")
         const hoursMatch = text.match(/через\s*(\d+)\s*годин/i) || text.match(/(\d+)\s*год/i);
         const hours = hoursMatch ? parseInt(hoursMatch[1]) : 24;
 
-        // Парсимо скільки хвилин додавати (шукаємо "+30 хв")
         const extendMatch = text.match(/\+(\d+)\s*хв/i);
         const extendMins = extendMatch ? parseInt(extendMatch[1]) : 30;
 
-        // Парсимо в які останні хвилини реагувати (шукаємо "останні 30 хв")
         const thresholdMatch = text.match(/останні\s*(\d+)\s*хв/i);
         const thresholdMins = thresholdMatch ? parseInt(thresholdMatch[1]) : extendMins;
+
+        const now = Date.now();
 
         this.activeAuctions[messageId] = {
             auctionId: messageId,
@@ -138,10 +153,10 @@ export class AuctionManager {
             initialDurationMs: hours * 60 * 60 * 1000,
             extendByMs: extendMins * 60 * 1000,
             extendThresholdMs: thresholdMins * 60 * 1000,
-            endTime: isDynamic ? null : Date.now() + (hours * 60 * 60 * 1000),
+            endTime: isDynamic ? null : now + (hours * 60 * 60 * 1000),
             isDynamic,
             lastBidMsgId: messageId,
-            createdAt: Date.now(),
+            createdAt: now,
             history: []
         };
         this.isDirty = true;
@@ -178,9 +193,17 @@ export class AuctionManager {
         if (!auctionId) return false;
 
         const auction = this.activeAuctions[auctionId];
+        const now = Date.now();
+
+        // Якщо аукціон фізично протух, але якось дожив до цієї мілісекунди
+        if ((now - auction.createdAt) > this.MAX_LIFETIME_MS) {
+            delete this.activeAuctions[auctionId];
+            this.isDirty = true;
+            return false; // Ігноруємо старий запис, йдемо далі
+        }
+
         const msgId = ctx.message.message_id;
         const text = ctx.message.text || "";
-        const now = Date.now();
 
         const logEntry: Omit<BidLog, 'isValid'> = {
             msgId,
@@ -193,9 +216,7 @@ export class AuctionManager {
         
         const bidAmount = this.extractBidAmount(text, auction.startBid);
         
-        if (isNaN(bidAmount)) {
-            return false; 
-        }
+        if (isNaN(bidAmount)) return false; 
 
         if (!ctx.message.reply_to_message) {
             await this.rejectBid(ctx, auction, logEntry, this.texts.notReply, "No reply");
@@ -213,7 +234,7 @@ export class AuctionManager {
             await ctx.deleteMessage().catch(() => {});
             const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
             await this.sendTempMessage(ctx, responseText);
-            return true;
+            return true; // Спрацювало на щойно закритий аукціон
         }
 
         if (auction.currentBid === 0 && bidAmount < auction.startBid) {
@@ -235,10 +256,8 @@ export class AuctionManager {
         auction.lastBidMsgId = msgId;
 
         if (auction.isDynamic && isFirstBid) {
-             // Встановлюємо кінець, спираючись на динамічно зчитані години з поста
              auction.endTime = now + auction.initialDurationMs;
         } else if (auction.endTime && (auction.endTime - now) < auction.extendThresholdMs) {
-            // Додаємо зчитані з поста хвилини
             auction.endTime += auction.extendByMs;
             await ctx.reply(this.texts.extended, { reply_parameters: { message_id: msgId } }).catch(() => {});
         }
@@ -258,7 +277,11 @@ export class AuctionManager {
     public async handleEdit(ctx: Context) {
         if (!ctx.editedMessage) return;
         const msgId = ctx.editedMessage.message_id;
+        
         for (const [aId, auction] of Object.entries(this.activeAuctions)) {
+            // Ігноруємо редагування в старих аукаї
+            if ((Date.now() - auction.createdAt) > this.MAX_LIFETIME_MS) continue;
+
             const isBid = auction.history.some(log => log.msgId === msgId);
             
             if (isBid) {
@@ -271,10 +294,26 @@ export class AuctionManager {
                     this.texts.editLog(ctx.from!.id, link), 
                     { parse_mode: "HTML" }
                 ).catch(() => {});
-                
                 return;
             }
         }
+    }
+
+    public async handleAdminStop(ctx: Context) {
+        if (!ctx.message) return;
+
+        const auctionId = this.getAuctionId(ctx);
+        if (!auctionId) {
+            await ctx.reply("❌ Не знайдено активного аукціону.").catch(() => {});
+            return;
+        }
+
+        delete this.activeAuctions[auctionId];
+        this.isDirty = true;
+        
+        await ctx.reply("🛑 Аукціон примусово зупинено та видалено з бази.", { 
+            reply_parameters: { message_id: ctx.message.message_id } 
+        }).catch(() => {});
     }
 
     private async sendTempMessage(ctx: Context, text: string) {
