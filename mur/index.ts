@@ -38,7 +38,7 @@ export function startMurBot() {
   };
 
   const sendPostMarkup = async (ctx: Context) => {
-    const msg = ctx.msg || ctx.channelPost || ctx.editedMessage;// || ctx.editedChannelPost
+    const msg = ctx.msg || ctx.channelPost || ctx.editedMessage;
     if (!msg) return;
 
     const mgId = msg.media_group_id;
@@ -101,7 +101,6 @@ export function startMurBot() {
     }
 
     try {
-    
       const botMember = await ctx.api.getChatMember(chatId, ctx.me.id);
       
       let canDelete = false;
@@ -174,7 +173,7 @@ export function startMurBot() {
     await ctx.answerCallbackQuery().catch(() => {});
   });
 
-  bot.on(["channel_post"], async (ctx) => {//, "edited_channel_post"
+  bot.on(["channel_post"], async (ctx) => {
     if (CONFIG.allowedResources.includes(ctx.chat.id)) await sendPostMarkup(ctx);
   });
 
@@ -197,11 +196,13 @@ export function startMurBot() {
     await next();
   });
 
+  // ОСЬ ТУТ ЗМІНИ
   bot.on("edited_message", async (ctx, next) => {
+    // Якщо повідомлення від каналу (редагований пост) — ігноруємо, повертаємось
     if (ctx.editedMessage?.sender_chat?.type === "channel" && CONFIG.allowedResources.includes(ctx.editedMessage.sender_chat.id)) {
-      await sendPostMarkup(ctx);
       return;
     }
+    // Перевірка редагування ставок користувачами залишається
     await auctionManager.handleEdit(ctx as any);
     await next();
   });
@@ -235,6 +236,7 @@ export function startMurBot() {
       }
     }
   });
+
   bot.catch(async (err) => {
     const e = err.error;
     const errorMsg = e instanceof GrammyError ? e.description : e instanceof HttpError ? "Помилка мережі" : String(e);
