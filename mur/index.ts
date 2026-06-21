@@ -119,6 +119,12 @@ export function startMurBot() {
     }
   });
 
+  bot.command("stop", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !CONFIG.admins.includes(userId)) return;
+    await auctionManager.handleAdminStop(ctx as any);
+  });
+
   bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !CONFIG.admins.includes(userId)) return;
