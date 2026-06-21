@@ -9,11 +9,9 @@ export interface AuctionTexts {
     lateNoBids: string;
     extended: string;
     editWarn: string;
-    // Логи для адмінів тепер можуть бути простішими, бо ми зберігаємо все в базі
     editLog: (userId: number, link: string) => string; 
 }
 
-// Розширена структура для Web App
 interface BidLog {
     msgId: number;
     userId: number;
@@ -33,6 +31,9 @@ interface AuctionData {
     currentBid: number;
     endTime: number | null;
     isDynamic: boolean;
+    initialDurationMs: number;
+    extendByMs: number;
+    extendThresholdMs: number;
     lastBidMsgId: number;
     createdAt: number;
     history: BidLog[]; 
@@ -50,7 +51,8 @@ export class AuctionManager {
     ) {
         this.loadDb();
         setInterval(() => this.saveDb(), 5000);
-        setInterval(() => this.checkEndedAuctions(), 10000);
+        // Зменшено інтервал до 3 секунд, щоб бот вчасно стопав аукціони
+        setInterval(() => this.checkEndedAuctions(), 3000);
     }
 
     private loadDb() {
@@ -115,13 +117,28 @@ export class AuctionManager {
 
         const isDynamic = text.includes("після публікування першої ставки");
 
+        // Парсимо тривалість у годинах (шукаємо "24 годин" або "24 год")
+        const hoursMatch = text.match(/через\s*(\d+)\s*годин/i) || text.match(/(\d+)\s*год/i);
+        const hours = hoursMatch ? parseInt(hoursMatch[1]) : 24;
+
+        // Парсимо скільки хвилин додавати (шукаємо "+30 хв")
+        const extendMatch = text.match(/\+(\d+)\s*хв/i);
+        const extendMins = extendMatch ? parseInt(extendMatch[1]) : 30;
+
+        // Парсимо в які останні хвилини реагувати (шукаємо "останні 30 хв")
+        const thresholdMatch = text.match(/останні\s*(\d+)\s*хв/i);
+        const thresholdMins = thresholdMatch ? parseInt(thresholdMatch[1]) : extendMins;
+
         this.activeAuctions[messageId] = {
             auctionId: messageId,
             chatId,
             startBid: parseInt(startMatch[1]),
             step: parseInt(stepMatch[1]),
             currentBid: 0,
-            endTime: isDynamic ? null : Date.now() + 24 * 60 * 60 * 1000,
+            initialDurationMs: hours * 60 * 60 * 1000,
+            extendByMs: extendMins * 60 * 1000,
+            extendThresholdMs: thresholdMins * 60 * 1000,
+            endTime: isDynamic ? null : Date.now() + (hours * 60 * 60 * 1000),
             isDynamic,
             lastBidMsgId: messageId,
             createdAt: Date.now(),
@@ -173,7 +190,9 @@ export class AuctionManager {
             rawText: text,
             timestamp: now
         };
+        
         const bidAmount = this.extractBidAmount(text, auction.startBid);
+        
         if (isNaN(bidAmount)) {
             return false; 
         }
@@ -207,15 +226,20 @@ export class AuctionManager {
             await this.rejectBid(ctx, auction, logEntry, this.texts.tooSmall(minRequired), "Bid too small");
             return true;
         }
+        
         logEntry.amount = bidAmount;
         auction.history.push({ ...logEntry, isValid: true });
+        
+        const isFirstBid = auction.currentBid === 0;
         auction.currentBid = bidAmount;
         auction.lastBidMsgId = msgId;
 
-        if (auction.isDynamic && auction.currentBid === bidAmount) {
-             auction.endTime = now + 24 * 60 * 60 * 1000;
-        } else if (auction.endTime && (auction.endTime - now) < 30 * 60 * 1000) {
-            auction.endTime += 30 * 60 * 1000;
+        if (auction.isDynamic && isFirstBid) {
+             // Встановлюємо кінець, спираючись на динамічно зчитані години з поста
+             auction.endTime = now + auction.initialDurationMs;
+        } else if (auction.endTime && (auction.endTime - now) < auction.extendThresholdMs) {
+            // Додаємо зчитані з поста хвилини
+            auction.endTime += auction.extendByMs;
             await ctx.reply(this.texts.extended, { reply_parameters: { message_id: msgId } }).catch(() => {});
         }
 
@@ -254,10 +278,9 @@ export class AuctionManager {
     }
 
     private async sendTempMessage(ctx: Context, text: string) {
-        // Надсилаємо повідомлення без реплаю (оскільки оригінал видалено)
         const msg = await ctx.reply(text, { parse_mode: "HTML" }).catch(() => null);
         if (msg) {
-            setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 25000);
+            setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 60000);
         }
     }
 }

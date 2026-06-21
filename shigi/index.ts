@@ -77,6 +77,37 @@ export function startShigiBot() {
     } as any).catch(console.error);
   });
 
+  bot.command("status", async (ctx) => {
+    const userId = ctx.from?.id;
+    if (!userId || !CONFIG.admins.includes(userId)) return;
+
+    const args = ctx.match.split(" ");
+
+    const chatId = args[0] ? Number(args[0]) : ctx.chat.id;
+
+    if (isNaN(chatId)) {
+      return ctx.reply("❌ Формат: <code>/status [-100xxxxxx]</code>", { parse_mode: "HTML" });
+    }
+
+    try {
+    
+      const botMember = await ctx.api.getChatMember(chatId, ctx.me.id);
+      
+      let canDelete = false;
+      if (botMember.status === "administrator") {
+        canDelete = botMember.can_delete_messages ?? false;
+      }
+
+      const statusText = canDelete 
+        ? `✅ Бот <b>має право</b> видаляти повідомлення у чаті <code>${chatId}</code>.`
+        : `❌ Бот <b>НЕ має права</b> видаляти повідомлення у чаті <code>${chatId}</code> (бракує прав або не є адміністратором).`;
+
+      await ctx.reply(statusText, { parse_mode: "HTML" });
+    } catch (e: any) {
+      await ctx.reply(`❌ Помилка API: ${e.message}`);
+    }
+  });
+
   bot.command("postrep", async (ctx) => {
     const userId = ctx.from?.id;
     if (!userId || !CONFIG.admins.includes(userId)) return;

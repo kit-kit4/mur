@@ -1,3 +1,4 @@
+import { existsSync, readFileSync } from "fs";
 
 interface MurData {
   warnings: Record<number, number>;
@@ -9,27 +10,29 @@ export class MurDatabase {
   private isDirty = false;
 
   constructor(private dbPath: string) {
-    this.init();
+    this.initSync();
     setInterval(() => this.save(), 10000); 
   }
 
-  private async init() {
-    const file = Bun.file(this.dbPath);
-    if (await file.exists()) {
+  private initSync() {
+    if (existsSync(this.dbPath)) {
       try {
-        this.data = await file.json();
+        // Читаємо файл синхронно, щоб заблокувати потік до повного завантаження бази
+        const rawData = readFileSync(this.dbPath, "utf-8");
+        this.data = JSON.parse(rawData);
       } catch (e) {
         console.error("Помилка читання бази Мур:", e);
       }
     } else {
+      // Якщо файлу ще немає, помічаємо як брудний, щоб setInterval його створив
       this.isDirty = true;
-      await this.save();
     }
   }
 
   private async save() {
     if (!this.isDirty) return;
     try {
+      // Зберігаємо асинхронно через швидкий Bun.write
       await Bun.write(this.dbPath, JSON.stringify(this.data, null, 2));
       this.isDirty = false;
     } catch (e) {
