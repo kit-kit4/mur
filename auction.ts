@@ -112,7 +112,7 @@ export class AuctionManager {
         const auctionLink = `https://t.me/c/${cleanChatId}/${auctionId}`;
         const userLink = `<a href="tg://user?id=${winner.userId}">${winner.firstName}</a>`;
 
-        await this.bot.api.sendMessage(auction.chatId, "ВАША", {
+        await this.bot.api.sendMessage(auction.chatId, "Адміністрація звяжеться з вами, на рахунок вашого виграшу!)", {
             reply_parameters: { message_id: winner.msgId }
         }).catch(() => {});
 
