@@ -131,6 +131,8 @@ export class AuctionManager {
 
         if (!startMatch || !stepMatch) return;
 
+        // Динамічний аукціон: дедлайн рахується від ПЕРШОЇ СТАВКИ, а не від публікації поста.
+        // Приклад: "Кінець через 24 годин після публікування першої ставки, АЛЕ +30 хв, якщо ставка в останні 30 хв."
         const isDynamic = text.includes("після публікування першої ставки");
 
         const hoursMatch = text.match(/через\s*(\d+)\s*годин/i) || text.match(/(\d+)\s*год/i);
@@ -144,16 +146,59 @@ export class AuctionManager {
 
         const now = Date.now();
 
+        let initialDurationMs = hours * 60 * 60 * 1000;
+        let endTime: number | null = null;
+
+        if (!isDynamic) {
+            // Для статичних аукціонів шукаємо явний clock-дедлайн біля слова "кінець"
+            // Приклад: "кінець: наступного дня о 21:00"
+            const kinetsIdx = text.search(/кінець/i);
+            let endSection = "";
+            if (kinetsIdx !== -1) {
+                endSection = text.slice(kinetsIdx, kinetsIdx + 150);
+                const nl = endSection.indexOf('\n');
+                if (nl !== -1) endSection = endSection.slice(0, nl);
+            }
+
+            const clockMatch = endSection.match(/(\d{1,2})[:.](\d{2})/);
+            const isNextDay = /наступн\w*\s*дня/i.test(endSection);
+
+            if (clockMatch) {
+                const targetHour = parseInt(clockMatch[1]);
+                const targetMin = parseInt(clockMatch[2]);
+                const target = new Date(now);
+                target.setHours(targetHour, targetMin, 0, 0);
+
+                if (isNextDay) {
+                    // "наступного дня о 21:00" — завжди +1 календарний день від публікації,
+                    // незалежно від того, минув вже цей час сьогодні чи ні
+                    target.setDate(target.getDate() + 1);
+                } else if (target.getTime() <= now) {
+                    // просто "о 21:00" без уточнення — найближче настання цього часу
+                    target.setDate(target.getDate() + 1);
+                }
+
+                endTime = target.getTime();
+                initialDurationMs = endTime - now;
+            } else {
+                // Немає clock-часу — звичайна тривалість "через N годин" від публікації
+                endTime = now + initialDurationMs;
+            }
+        }
+        // Якщо isDynamic === true: endTime лишається null тут,
+        // initialDurationMs = hours*ms (з "через N годин після публікування першої ставки"),
+        // а реальний endTime виставляється пізніше в handleBid() при першій валідній ставці.
+
         this.activeAuctions[messageId] = {
             auctionId: messageId,
             chatId,
             startBid: parseInt(startMatch[1]),
             step: parseInt(stepMatch[1]),
             currentBid: 0,
-            initialDurationMs: hours * 60 * 60 * 1000,
+            initialDurationMs,
             extendByMs: extendMins * 60 * 1000,
             extendThresholdMs: thresholdMins * 60 * 1000,
-            endTime: isDynamic ? null : now + (hours * 60 * 60 * 1000),
+            endTime: isDynamic ? null : endTime,
             isDynamic,
             lastBidMsgId: messageId,
             createdAt: now,
