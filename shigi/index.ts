@@ -3,14 +3,14 @@ import { CONFIG } from "./config";
 import { formatPremiumEmoji, getDefaultKeyboard, getStartKeyboard, hasRussian } from "./utils";
 import { FastCache } from "./cache";
 import { ShigiDatabase } from "./db";
-import { AuctionManager } from "../auction"; 
+//import { AuctionManager } from "../auction"; 
 
 export function startShigiBot() {
   const bot = new Bot(CONFIG.token);
   const db = new ShigiDatabase(CONFIG.dbPath);
   
   const processedMediaGroups = new FastCache<string>(60000);
-
+/*
   const auctionManager = new AuctionManager(bot as any, "./shigi_auctions.json", {
     notReply: "Ставку треба робити реплаєм на попередню!",
     notReplyToLast: "Упс! Ставку потрібно робити реплаєм виключно на ОСТАННЮ актуальну ставку в чаті! ⚠️",
@@ -21,7 +21,7 @@ export function startShigiBot() {
     editWarn: "Аяяй, я все бачу! Редагувати ставки заборонено 😏",
     editLog: (userId, link) => `🚨 <b>Редагування ставки!</b>\nID: <code>${userId}</code>\n<a href="${link}">Посилання</a>`,
   }, CONFIG.adminChatId);
-
+*/
   const logTo = async (threadId: number, message: string) => {
     try {
       await bot.api.sendMessage(CONFIG.adminChatId, message, {
@@ -49,7 +49,7 @@ export function startShigiBot() {
       replyText = CONFIG.texts.lot;
     } else if (text.includes("[a]") || text.includes("[а]")) {
       replyText = CONFIG.texts.auction;
-      auctionManager.registerPost(msg.message_id, ctx.chat!.id, msg.text || msg.caption || "");
+      // auctionManager.registerPost(msg.message_id, ctx.chat!.id, msg.text || msg.caption || "");
     }
 
     if (!replyText) return;
@@ -112,7 +112,7 @@ export function startShigiBot() {
     const userId = ctx.from?.id;
 
     if (!userId || !CONFIG.admins.includes(userId)) return;
-    await auctionManager.handleAdminStop(ctx as any);
+    // await auctionManager.handleAdminStop(ctx as any);
   });
 
   bot.command("postrep", async (ctx) => {
@@ -190,7 +190,7 @@ export function startShigiBot() {
   });
 
   bot.on("edited_message", async (ctx) => {
-    await auctionManager.handleEdit(ctx as any);
+    // await auctionManager.handleEdit(ctx as any);
   });
 
   bot.hears(/^[Лл]іам[!?.]*$/i, async (ctx) => {
@@ -206,8 +206,8 @@ export function startShigiBot() {
   bot.on("message:text", async (ctx) => {
     if (ctx.from?.is_bot || ctx.chat.id === CONFIG.adminChatId || ctx.chat.type === "private") return;
 
-    const isBid = await auctionManager.handleBid(ctx as any);
-    if (isBid) return; 
+    // const isBid = await auctionManager.handleBid(ctx as any);
+    // if (isBid) return; 
 
     if (hasRussian(ctx.msg.text)) {
       const userId = ctx.from!.id;
