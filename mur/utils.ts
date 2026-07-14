@@ -22,7 +22,7 @@ export const hasRussian = (text: string): boolean => {
 
 export const getKeyboard = (type: "lot" | "auction" | "default") => {
   const kb = new InlineKeyboard().url("Відгуки 📝", "https://t.me/infomurumi/7");
-  if (type === "auction") return kb.url("Наш Чатик", "https://t.me/infomurumi/13");
+  if (type === "auction") return kb.url("Наш Чатик", "https://t.me/infomurumi/13") && kb.url("Як працює аукціон?", "https://t.me/murumishop/12871");
   return kb
     .url("Скільки чекати? ⏳", "https://t.me/murumishop/64")
     .row()
