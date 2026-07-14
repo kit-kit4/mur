@@ -221,6 +221,9 @@ export class AuctionManager {
                 if (auction.history.some(log => log.msgId === replyId)) return parseInt(aId);
             }
         }
+
+   
+
         return null;
     }
 
@@ -322,25 +325,40 @@ export class AuctionManager {
     public async handleEdit(ctx: Context) {
         if (!ctx.editedMessage) return;
         const msgId = ctx.editedMessage.message_id;
+        const newText = ctx.editedMessage.text || "";
         
         for (const [aId, auction] of Object.entries(this.activeAuctions)) {
             // Ігноруємо редагування в старих аукаї
             if ((Date.now() - auction.createdAt) > this.MAX_LIFETIME_MS) continue;
 
-            const isBid = auction.history.some(log => log.msgId === msgId);
-            
-            if (isBid) {
-                await ctx.deleteMessage().catch(() => {});
-                await this.sendTempMessage(ctx, this.texts.editWarn);
-                const cleanChatId = auction.chatId.toString().replace("-100", "");
-                const link = `https://t.me/c/${cleanChatId}/${aId}`;
-                await this.bot.api.sendMessage(
-                    this.adminChatId, 
-                    this.texts.editLog(ctx.from!.id, link), 
-                    { parse_mode: "HTML" }
-                ).catch(() => {});
-                return;
+            const logIndex = auction.history.findIndex(log => log.msgId === msgId);
+            if (logIndex === -1) continue;
+
+            const log = auction.history[logIndex];
+
+       
+            if (log.isValid && msgId === auction.lastBidMsgId) {
+                const newAmount = this.extractBidAmount(newText, auction.startBid);
+                if (!isNaN(newAmount) && log.amount !== null && newAmount > log.amount) {
+                    log.amount = newAmount;
+                    log.rawText = newText;
+                    auction.currentBid = newAmount;
+                    this.isDirty = true;
+                    return;
+                }
             }
+
+   
+            await ctx.deleteMessage().catch(() => {});
+            await this.sendTempMessage(ctx, this.texts.editWarn);
+            const cleanChatId = auction.chatId.toString().replace("-100", "");
+            const link = `https://t.me/c/${cleanChatId}/${aId}`;
+            await this.bot.api.sendMessage(
+                this.adminChatId, 
+                this.texts.editLog(ctx.from!.id, link), 
+                { parse_mode: "HTML" }
+            ).catch(() => {});
+            return;
         }
     }
 
