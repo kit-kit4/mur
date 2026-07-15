@@ -275,12 +275,12 @@ export class AuctionManager {
             return true;
         }
 
-        if (auction.endTime && now > auction.endTime) {
-            await ctx.deleteMessage().catch(() => {});
-            const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
-            await this.sendTempMessage(ctx, responseText);
-            return true; // Спрацювало на щойно закритий аукціон
-        }
+       if (auction.endTime && now > auction.endTime) {
+    await ctx.deleteMessage().catch(() => {});
+    const responseText = auction.currentBid === 0 ? this.texts.lateNoBids : this.texts.late;
+    await this.sendTempMessage(ctx, responseText, msgId);
+    return true;
+}
 
         if (auction.currentBid === 0 && bidAmount < auction.startBid) {
             await this.rejectBid(ctx, auction, logEntry, this.texts.tooSmall(auction.startBid), "Below start bid");
@@ -312,37 +312,42 @@ export class AuctionManager {
         return true;
     }
 
-    private async rejectBid(ctx: Context, auction: AuctionData, logEntry: any, warningText: string, reason: string) {
-        auction.history.push({ ...logEntry, isValid: false, invalidReason: reason });
-        this.isDirty = true;
+   private async rejectBid(ctx: Context, auction: AuctionData, logEntry: any, warningText: string, reason: string) {
+    auction.history.push({ ...logEntry, isValid: false, invalidReason: reason });
+    this.isDirty = true;
+    await ctx.deleteMessage().catch(() => {});
+    await this.sendTempMessage(ctx, `❌ ${warningText}`, logEntry.msgId);
+}
+
+   public async handleEdit(ctx: Context) {
+    if (!ctx.editedMessage) return;
+    if (ctx.from?.is_bot) return;
+
+    const msgId = ctx.editedMessage.message_id;
+    const newText = ctx.editedMessage.text || ctx.editedMessage.caption || "";
+
+    for (const [aId, auction] of Object.entries(this.activeAuctions)) {
+        if ((Date.now() - auction.createdAt) > this.MAX_LIFETIME_MS) continue;
+
+        const bidLog = auction.history.find(log => log.msgId === msgId);
+        if (!bidLog) continue;
+
+        // Якщо текст той самий — це не реальне редагування ставки,
+        // а "фантомна" edited_message подія (реакція/технічний апдейт). Ігноруємо.
+        if (newText === bidLog.rawText) return;
+
         await ctx.deleteMessage().catch(() => {});
-        await this.sendTempMessage(ctx, `❌ ${warningText}`);
+        await this.sendTempMessage(ctx, this.texts.editWarn, msgId);
+        const cleanChatId = auction.chatId.toString().replace("-100", "");
+        const link = `https://t.me/c/${cleanChatId}/${aId}`;
+        await this.bot.api.sendMessage(
+            this.adminChatId,
+            this.texts.editLog(ctx.from!.id, link),
+            { parse_mode: "HTML" }
+        ).catch(() => {});
+        return;
     }
-
-    public async handleEdit(ctx: Context) {
-        if (!ctx.editedMessage) return;
-        const msgId = ctx.editedMessage.message_id;
-        
-        for (const [aId, auction] of Object.entries(this.activeAuctions)) {
-            // Ігноруємо редагування в старих аукаї
-            if ((Date.now() - auction.createdAt) > this.MAX_LIFETIME_MS) continue;
-
-            const isBid = auction.history.some(log => log.msgId === msgId);
-            
-            if (isBid) {
-                await ctx.deleteMessage().catch(() => {});
-                await this.sendTempMessage(ctx, this.texts.editWarn);
-                const cleanChatId = auction.chatId.toString().replace("-100", "");
-                const link = `https://t.me/c/${cleanChatId}/${aId}`;
-                await this.bot.api.sendMessage(
-                    this.adminChatId, 
-                    this.texts.editLog(ctx.from!.id, link), 
-                    { parse_mode: "HTML" }
-                ).catch(() => {});
-                return;
-            }
-        }
-    }
+}
 
     public async handleAdminStop(ctx: Context) {
         if (!ctx.message) return;
@@ -361,10 +366,16 @@ export class AuctionManager {
         }).catch(() => {});
     }
 
-    private async sendTempMessage(ctx: Context, text: string) {
-        const msg = await ctx.reply(text, { parse_mode: "HTML" }).catch(() => null);
-        if (msg) {
-            setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 60000);
-        }
+    private async sendTempMessage(ctx: Context, text: string, replyToMessageId?: number) {
+    const options: any = { parse_mode: "HTML" };
+    if (replyToMessageId) {
+        // allow_sending_without_reply рятує, якщо оригінал вже видалений —
+        // повідомлення просто відправиться без цитати, а не впаде з помилкою
+        options.reply_parameters = { message_id: replyToMessageId, allow_sending_without_reply: true };
     }
+    const msg = await ctx.reply(text, options).catch(() => null);
+    if (msg) {
+        setTimeout(() => ctx.api.deleteMessage(ctx.chat!.id, msg.message_id).catch(() => {}), 60000);
+    }
+}
 }
